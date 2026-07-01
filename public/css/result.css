@@ -60,7 +60,7 @@ body {
     pointer-events: none;
 }
 
-/* ===== TEAM HEADER (logo + name + BAN row) ===== */
+/* ===== TEAM HEADER (name + BAN row) ===== */
 .team-header {
     width: 520px;
     flex-shrink: 0;
@@ -75,15 +75,13 @@ body {
 .team-logo-name {
     display: flex;
     align-items: center;
-    gap: 18px;
+    justify-content: flex-start;
+    gap: 0;
     margin-bottom: 18px;
 }
 
 .team-logo-img {
-    width: 90px;
-    height: 90px;
-    object-fit: contain;
-    filter: drop-shadow(0 0 14px rgba(255,255,255,0.4));
+    display: none !important;
 }
 
 .team-name-text {
@@ -270,4 +268,113 @@ body {
     font-size: 40px;
     opacity: 0.1;
     z-index: 1;
+}
+
+/* ===== Result overlay polish ===== */
+body {
+    font-family: "Segoe UI", Arial, sans-serif;
+}
+
+.result-container {
+    background:
+        radial-gradient(circle at 20% 15%, rgba(14, 165, 233, 0.18), transparent 28%),
+        radial-gradient(circle at 80% 85%, rgba(239, 68, 68, 0.16), transparent 30%),
+        rgba(2, 6, 23, 0.72);
+}
+
+.team-section.blue {
+    background:
+        linear-gradient(90deg, rgba(7, 89, 133, 0.9), rgba(15, 23, 42, 0.9) 42%, rgba(2, 6, 23, 0.86)),
+        linear-gradient(135deg, rgba(56, 189, 248, 0.18), transparent);
+}
+
+.team-section.red {
+    background:
+        linear-gradient(90deg, rgba(127, 29, 29, 0.9), rgba(15, 23, 42, 0.9) 42%, rgba(2, 6, 23, 0.86)),
+        linear-gradient(135deg, rgba(248, 113, 113, 0.16), transparent);
+}
+
+.team-header {
+    width: 430px;
+    padding: 28px 24px 28px 36px;
+}
+
+.team-logo-name {
+    gap: 0;
+    margin-bottom: 24px;
+}
+
+.team-logo-img {
+    display: none !important;
+}
+
+.team-name-text {
+    max-width: 360px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 42px;
+    letter-spacing: 1px;
+    white-space: nowrap;
+}
+
+.ban-label-badge {
+    border-radius: 5px;
+    background: rgba(185, 28, 28, 0.88);
+}
+
+.ban-icon-slot {
+    width: 58px;
+    height: 58px;
+    border-radius: 6px;
+    background: rgba(2, 6, 23, 0.72);
+}
+
+.ban-icon-slot::after {
+    content: "X";
+    color: rgba(248, 113, 113, 0.92);
+    text-shadow: 0 0 10px rgba(248, 113, 113, 0.8);
+}
+
+.picks-row {
+    padding: 20px 22px 20px 0;
+    gap: 10px;
+}
+
+.pick-card {
+    margin: 0;
+    border-radius: 7px;
+    background: rgba(15, 23, 42, 0.66);
+}
+
+.blue .pick-card {
+    border-color: rgba(56, 189, 248, 0.46);
+}
+
+.red .pick-card {
+    border-color: rgba(248, 113, 113, 0.46);
+}
+
+.pick-card .hero-art {
+    object-position: center top;
+    transform: scale(1.02);
+}
+
+.pick-card.filled .hero-art {
+    opacity: 1;
+}
+
+.pick-card-footer {
+    padding: 14px 10px;
+    background: linear-gradient(to top, rgba(2, 6, 23, 0.94), transparent);
+}
+
+.pick-player-name {
+    font-size: 22px;
+    letter-spacing: 1px;
+}
+
+.center-divider {
+    height: 4px;
+    background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.65), rgba(248, 113, 113, 0.65), transparent);
+    box-shadow: 0 0 16px rgba(255, 255, 255, 0.18);
 }

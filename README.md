@@ -1,188 +1,206 @@
-# ROV Pick & Ban Overlay Tool
+# ROV Pick/Ban Overlay Tool
 
-A real-time draft pick and ban phase overlay for **Arena of Valor (ROV)** tournaments, built to integrate with OBS Studio via browser source.
+[![Platform](https://img.shields.io/badge/platform-Windows-2563eb)](https://github.com/wittayangamhom-create/rov_pickban_overlay)
+[![OBS](https://img.shields.io/badge/OBS-Browser%20Source-7c3aed)](https://obsproject.com/)
+[![License](https://img.shields.io/badge/license-Free%20Non--Commercial-ef4444)](LICENSE.md)
+[![Release](https://img.shields.io/badge/download-Releases-16a34a)](https://github.com/wittayangamhom-create/rov_pickban_overlay/releases)
 
----
+ROV Pick/Ban Overlay Tool คือแอพสำหรับทำหน้าจอ Draft Pick / Ban ของเกม ROV เพื่อใช้กับ OBS, งานถ่ายทอดสด, รายการชุมชน, ทัวร์นาเมนต์เล็ก-กลาง และทีมงานที่ต้องการ overlay ใช้งานง่ายโดยไม่ต้องเขียนโค้ดเอง
 
-## Features
+โปรเจกต์นี้แจกให้ใช้งานฟรี แต่ห้ามนำไปขาย ขายต่อ ให้เช่า รวมในแพ็กเกจเสียเงิน หรืออ้างว่าเป็นผลงานของตัวเอง
 
-- Real-time draft pick and ban phase display synced across all connected browsers
-- Searchable hero dropdowns for all 125 ROV heroes — type to filter instantly
-- 5 pick slots and 4 ban slots per team (Blue & Red)
-- Hero icon display for ban phase, full art for picks
-- Customizable team names, scores, and player names (with swap buttons)
-- Team logo support
-- Countdown timer with pause/resume
-- Switch Teams button to swap all team data at once
-- Clean 1920×1080 Full HD overlay layout
+## ดาวน์โหลดสำหรับผู้ใช้ทั่วไป
 
----
+ถ้าคุณต้องการใช้งานอย่างเดียว ให้ดาวน์โหลดไฟล์ `.exe` จากหน้า Releases:
 
-## Tech Stack
+[Download from GitHub Releases](https://github.com/wittayangamhom-create/rov_pickban_overlay/releases)
 
-- **Node.js** + **Express** — HTTP server & static file serving
-- **Socket.IO** — real-time two-way communication between control panel and overlay
-- **Vanilla JS / HTML / CSS** — no frontend framework needed
+แนะนำให้โหลดไฟล์ใดไฟล์หนึ่ง:
 
----
-
-## Requirements
-
-- Node.js v16 or higher
-- npm
-
----
-
-## Installation
-
-**1. Clone or extract the project**
-
-```bash
-cd rov-overlay-tool
+```text
+ROV Overlay Tool Setup 1.0.0.exe
 ```
 
-**2. Install dependencies**
+หรือแบบพกพา:
 
-```bash
-npm install
+```text
+ROV-Overlay-Tool-Portable.exe
 ```
 
-**3. Add hero images**
+ผู้ใช้ทั่วไปไม่จำเป็นต้องติดตั้ง Node.js, npm, JavaScript หรือ Electron เพิ่ม ตัว `.exe` รวมสิ่งที่จำเป็นไว้แล้ว
 
-Place hero artwork in `public/images/heroes/` using lowercase filenames:
+## จุดเด่น
 
-```
-public/images/heroes/nakroth.png
-public/images/heroes/violet.png
-public/images/heroes/tel'annas.png
-public/images/heroes/bolt baron.png   # spaces are fine
-```
+- Control Panel สำหรับควบคุมทีม, ผู้เล่น, score, pick, ban และ timer
+- Overlay สำหรับ OBS แบบ 1920x1080
+- Overlay แยกสำหรับ 2560x1440
+- หน้า Result สำหรับสรุป draft
+- ค้นหาฮีโร่ด้วยการพิมพ์
+- สลับ hero pick ได้โดยไม่สลับชื่อผู้เล่น
+- ตั้งชื่อรายการ, match title, เกม, BO และข้อมูลทีมได้
+- รองรับรูปฮีโร่สำหรับ pick/ban และ result
+- เปิดเป็นแอพ Windows ด้วย Electron
+- มีระบบยืนยันเงื่อนไขการใช้งานก่อนเข้าแอพ
 
-> Images should be **240×390px**. Filenames must be all lowercase.
+## หน้าใช้งานหลัก
 
-Place hero icons (for ban phase) in `public/images/heroes-icons/` at **80×80px**.
+เมื่อเปิดแอพแล้ว ระบบจะรัน server ที่เครื่องของคุณ:
 
-Place team logos in `public/images/team-logos/` at **200×200px** (optional).
-
-**4. Start the server**
-
-```bash
-# Production
-npm start
-
-# Development (auto-restarts on file changes)
-npm run dev
-```
-
-The server runs at `http://localhost:3000`.
-
----
-
-## How to Use
-
-### Control Panel
-
-Open in your browser:
-
-```
-http://localhost:3000
+```text
+Control Panel:  http://127.0.0.1:3000/
+Overlay 1080p:  http://127.0.0.1:3000/overlay
+Overlay 1440p:  http://127.0.0.1:3000/overlay-1440
+Result:         http://127.0.0.1:3000/result
 ```
 
-From here you can:
+ในตัวแอพสามารถเปิดหน้า Overlay และ Result ได้จากเมนู `ROV Tool`
 
-- Set tournament name and match label
-- Set team names, scores, and player names (5 per team)
-- Select heroes for each pick and ban slot using the searchable dropdowns
-- Use the **swap player** buttons to reorder positions within a team
-- Use the **Switch Teams** button to swap all Blue/Red data
-- Set and control the countdown timer
+## ใช้กับ OBS
 
-**Using the searchable dropdowns:**
+เพิ่ม `Browser Source` ใน OBS แล้วใส่ URL ตามขนาดงาน
 
-1. Click a dropdown to open it
-2. Type part of a hero name (e.g., `nak`, `tel`)
-3. The list filters in real time — click or press Enter to confirm
-4. Press Esc to close, or click the X button to clear a slot
+สำหรับ 1080p:
 
-### Overlay (for OBS)
-
-Open in a browser or add as a Browser Source in OBS:
-
-```
-http://localhost:3000/overlay
+```text
+URL:    http://127.0.0.1:3000/overlay
+Width:  1920
+Height: 1080
 ```
 
-**OBS setup:**
-1. Add a **Browser Source**
-2. Set URL: `http://localhost:3000/overlay`
-3. Set width: `1920`, height: `1080`
-4. (Optional) Enable "Refresh browser when scene becomes active"
+สำหรับ 1440p:
 
-### Result Screen
-
-```
-http://localhost:3000/result
+```text
+URL:    http://127.0.0.1:3000/overlay-1440
+Width:  2560
+Height: 1440
 ```
 
-A post-draft result view showing both teams' picks and bans.
+อ่านรายละเอียดเพิ่มได้ที่:
 
----
-
-## Project Structure
-
-```
-rov-overlay-tool/
-├── server.js                 # Express + Socket.IO server
-├── package.json
-├── data/
-│   └── heroes.json           # Hero list (all lowercase)
-└── public/
-    ├── control.html          # Control panel UI
-    ├── overlay.html          # OBS overlay
-    ├── result.html           # Result screen
-    ├── css/
-    │   ├── control.css
-    │   ├── overlay.css
-    │   └── result.css
-    ├── js/
-    │   ├── control.js
-    │   ├── overlay.js
-    │   └── result.js
-    └── images/
-        ├── heroes/           # Full art (240×390px)
-        ├── heroes-icons/     # Ban phase icons (80×80px)
-        └── team-logos/       # Team logos (200×200px)
+```text
+docs/OBS_SETUP.md
 ```
 
----
+## วิธีใช้จาก source code
 
-## Customization
+สำหรับคนที่ต้องการแก้ไขหรือ build เอง
 
-**Change team colors** — edit `public/css/overlay.css`:
+ติดตั้ง Node.js LTS ก่อน จากนั้นรัน:
 
-```css
-.blue-team .pick-slot { border-color: #00bfff; }
-.red-team .pick-slot  { border-color: #ff4444; }
+```powershell
+npm.cmd install
+npm.cmd run app
 ```
 
-**Check for missing hero images:**
+ถ้าต้องการรันเป็น web server อย่างเดียว:
 
-```bash
-npm run check-heroes
+```powershell
+npm.cmd start
 ```
 
----
+## Build เป็นไฟล์ .exe
 
-## Troubleshooting
+สร้างไฟล์ portable:
 
-| Problem | Solution |
-|---|---|
-| Hero image not showing | Check that the filename is lowercase and matches the hero name in `heroes.json` |
-| Overlay not updating | Make sure the server is running and both pages are on the same `localhost:3000` |
-| Port already in use | Change the port in `server.js` and update your OBS URL accordingly |
+```powershell
+npm.cmd run portable
+```
 
----
+สร้างทั้งตัวติดตั้งและ portable:
+
+```powershell
+npm.cmd run dist
+```
+
+ไฟล์ build จะอยู่ใน:
+
+```text
+dist/
+```
+
+มีไฟล์ช่วยกดรันบน Windows:
+
+```text
+START_APP.cmd
+BUILD_PORTABLE_EXE.cmd
+BUILD_SETUP_EXE.cmd
+```
+
+## โครงสร้างโปรเจกต์
+
+```text
+data/                       รายชื่อฮีโร่และข้อมูลเริ่มต้น
+docs/                       คู่มือเพิ่มเติม
+public/                     หน้าเว็บ, overlay, css, js, รูป
+public/images/heroes/       รูปฮีโร่
+server.js                   server หลัก
+electron-main.js            ตัวเปิดแอพ Electron
+package.json                scripts และ dependencies
+LICENSE.md                  เงื่อนไขการใช้งาน
+INSTALL.md                  คู่มือติดตั้งแบบสั้น
+```
+
+## การปรับแต่ง
+
+เปลี่ยนรูปฮีโร่:
+
+```text
+public/images/heroes/
+```
+
+แก้รายชื่อฮีโร่:
+
+```text
+data/heroes.json
+```
+
+แก้หน้าตา overlay:
+
+```text
+public/css/overlay.css
+public/css/overlay-1440.css
+public/css/result.css
+```
+
+ดูรายละเอียดเพิ่ม:
+
+```text
+docs/CUSTOMIZE.md
+```
 
 ## License
 
-MIT
+โปรเจกต์นี้ใช้ license แบบ Free Non-Commercial
+
+อนุญาตให้:
+
+- ใช้งานฟรี
+- แจกต่อฟรี
+- ใช้กับรายการแข่ง, งานชุมชน, งานเรียน, งานถ่ายทอดสดที่ไม่ขายตัวแอพ
+- แก้ไข source code เพื่อใช้งานเอง
+
+ไม่อนุญาตให้:
+
+- ขายแอพนี้
+- ขายต่อหรือให้เช่า
+- รวมในแพ็กเกจเสียเงิน
+- เก็บเงินเพื่อให้เข้าถึงแอพ
+- ลบเครดิตหรืออ้างว่าเป็นผลงานของตัวเอง
+
+อ่านรายละเอียดเต็มได้ที่:
+
+```text
+LICENSE.md
+```
+
+## หมายเหตุเรื่องทรัพย์สินทางปัญญา
+
+เครื่องมือนี้เป็นระบบ overlay และ control panel เท่านั้น ชื่อเกม, รูปฮีโร่, โลโก้, artwork และ asset อื่นๆ เป็นสิทธิ์ของเจ้าของเดิม ผู้ใช้งานควรตรวจสอบสิทธิ์การใช้ asset ก่อนนำไปเผยแพร่หรือใช้ในงานเชิงพาณิชย์
+
+## Repository Description
+
+ถ้าต้องการใส่คำอธิบายสั้นๆ ในช่อง About ของ GitHub ใช้ข้อความนี้ได้:
+
+```text
+Free non-commercial ROV pick/ban overlay tool for OBS, with Windows app, 1080p/1440p overlays, draft timer, hero search, and result screen.
+```

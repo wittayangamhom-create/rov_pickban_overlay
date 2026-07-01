@@ -4,10 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ROV Control Panel</title>
-<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Barlow+Condensed:wght@600;700;900&display=swap" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
 <style>
-:root{--bg:#0b0c14;--s1:#111220;--s2:#181929;--s3:#1e2035;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--blue:#3b82f6;--red:#ef4444;--gold:#f59e0b;--purple:#8b5cf6;--green:#10b981;--text:#e2e8f0;--muted:#4a5568;--muted2:#64748b;--hf:'Barlow Condensed',sans-serif;--bf:'Rajdhani',sans-serif;}
+:root{--bg:#0b0c14;--s1:#111220;--s2:#181929;--s3:#1e2035;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--blue:#3b82f6;--red:#ef4444;--gold:#f59e0b;--purple:#8b5cf6;--green:#10b981;--text:#e2e8f0;--muted:#4a5568;--muted2:#64748b;--hf:'Arial Narrow','Segoe UI Condensed','Segoe UI',Arial,sans-serif;--bf:'Segoe UI',Arial,sans-serif;}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100vh;}
 
@@ -15,14 +13,24 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 .topbar{background:var(--s1);border-bottom:1px solid var(--border);padding:0 18px;height:50px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;}
 .logo{font-family:var(--hf);font-size:18px;font-weight:900;letter-spacing:3px;color:var(--blue);white-space:nowrap;}
 .logo span{color:rgba(255,255,255,0.3);}
-.match-inputs{display:flex;align-items:center;gap:8px;flex:1;}
+.match-inputs{display:flex;align-items:center;gap:8px;flex:1;min-width:0;}
 .match-inputs input{background:var(--s3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:5px 10px;font-family:var(--bf);font-size:13px;font-weight:600;transition:border-color 0.2s;}
 .match-inputs input:focus{outline:none;border-color:var(--blue);}
 .match-inputs input:nth-child(1){width:185px;}
 .match-inputs input:nth-child(2){width:265px;}
-.topbar-links{margin-left:auto;display:flex;gap:8px;}
+.topbar-links{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.overlay-link-group{display:flex;gap:8px;align-items:center;}
+.overlay-url-item{display:flex;align-items:center;gap:3px;}
+.overlay-url-item .tlink:first-child{border-radius:6px 3px 3px 6px;}
+.copy-url-btn{width:28px;height:28px;padding:0;border-radius:3px 6px 6px 3px;font-size:15px;line-height:1;color:#94a3b8;display:inline-flex;align-items:center;justify-content:center;letter-spacing:0;}
+.copy-url-btn:hover{color:var(--green);border-color:var(--green);}
 .tlink{padding:5px 13px;border-radius:6px;font-family:var(--hf);font-size:12px;font-weight:800;letter-spacing:1px;cursor:pointer;border:1px solid var(--border2);background:var(--s3);color:var(--muted2);transition:all 0.2s;text-decoration:none;}
 .tlink:hover{color:var(--blue);border-color:var(--blue);}
+.preset-tools{display:flex;align-items:center;gap:6px;min-width:0;}
+.preset-tools input,.preset-tools select{height:29px;background:var(--s3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:4px 8px;font-family:var(--bf);font-size:12px;font-weight:600;min-width:110px;}
+.preset-tools input{width:120px;}
+.preset-tools select{width:130px;}
+.preset-tools input:focus,.preset-tools select:focus{outline:none;border-color:var(--blue);}
 
 /* MAIN GRID */
 .main{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px;max-width:1600px;margin:0 auto;}
@@ -42,7 +50,7 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 .panel-body{padding:12px 14px;}
 
 /* TEAM META */
-.team-meta{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin-bottom:12px;}
+.team-meta{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;margin-bottom:12px;}
 .field label{display:block;font-size:10px;letter-spacing:1.5px;color:var(--muted2);text-transform:uppercase;margin-bottom:4px;}
 .field input{width:100%;padding:7px 10px;background:var(--s3);border:1px solid var(--border2);color:var(--text);border-radius:7px;font-family:var(--bf);font-size:13px;font-weight:600;transition:border-color 0.2s;}
 .field input:focus{outline:none;border-color:var(--blue);}
@@ -54,21 +62,14 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 .pp-row .player-input{width:100%;padding:7px 10px;background:var(--s3);border:1px solid var(--border2);color:var(--text);border-radius:7px;font-family:var(--bf);font-size:13px;font-weight:600;transition:border-color 0.2s;}
 .pp-row .player-input:focus{outline:none;border-color:var(--blue);}
 
-/* Hero Select2 wrapper */
+/* Hero selector */
 .hero-select-wrap{min-width:110px;}
-.hero-select-wrap .select2-container{width:100% !important;}
-.hero-select-wrap .select2-container--default .select2-selection--single{background:var(--s3);border:1px solid var(--border2);border-radius:7px;height:33px;display:flex;align-items:center;}
-.hero-select-wrap .select2-container--default .select2-selection--single .select2-selection__rendered{color:var(--text);font-family:var(--bf);font-size:13px;font-weight:600;line-height:1;padding-left:10px;}
-.hero-select-wrap .select2-container--default .select2-selection--single .select2-selection__placeholder{color:var(--muted2);}
-.hero-select-wrap .select2-container--default .select2-selection--single .select2-selection__arrow{top:50%;transform:translateY(-50%);right:6px;}
-.hero-select-wrap .select2-container--default .select2-selection--single .select2-selection__clear{color:var(--muted2);margin-right:16px;font-size:14px;}
-.select2-dropdown{background:var(--s2);border:1px solid var(--border2);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.5);}
-.select2-container--default .select2-search--dropdown .select2-search__field{background:var(--s3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:7px 10px;font-family:var(--bf);font-size:13px;}
-.select2-container--default .select2-search--dropdown .select2-search__field:focus{outline:none;border-color:var(--blue);}
-.select2-container--default .select2-results__option{padding:7px 12px;font-family:var(--bf);font-size:13px;font-weight:600;color:var(--text);}
-.select2-container--default .select2-results__option--highlighted[aria-selected]{background:var(--blue);color:#fff;}
-.select2-container--default .select2-results__option[aria-selected=true]{background:var(--s3);color:var(--text);}
-.select2-results__message{padding:8px 12px;color:var(--muted2);font-family:var(--bf);}
+.hero-native-select{width:100%;height:33px;background:var(--s3);border:1px solid var(--border2);color:var(--text);border-radius:7px;padding:0 8px;font-family:var(--bf);font-size:13px;font-weight:600;transition:border-color 0.2s;}
+.hero-native-select:focus{outline:none;border-color:var(--blue);}
+.hero-native-select option{background:var(--s2);color:var(--text);}
+.hero-search-input{width:100%;height:33px;background:var(--s3);border:1px solid var(--border2);color:var(--text);border-radius:7px;padding:0 9px;font-family:var(--bf);font-size:13px;font-weight:700;transition:border-color 0.2s,box-shadow 0.2s;}
+.hero-search-input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 2px rgba(59,130,246,0.22);}
+.hero-search-input::placeholder{color:var(--muted2);font-weight:600;}
 
 /* SWAP button */
 .btn-sw{padding:5px 8px;border-radius:5px;font-family:var(--hf);font-size:11px;font-weight:800;letter-spacing:1px;border:none;cursor:pointer;background:var(--purple);color:#fff;transition:background 0.15s;white-space:nowrap;}
@@ -84,30 +85,27 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 .ban-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
 .ban-slot-wrap{display:flex;flex-direction:column;gap:3px;}
 .ban-slot-label{font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;text-align:center;}
-.ban-select-wrap .select2-container--default .select2-selection--single{background:var(--s3);border:1px solid var(--border2);border-radius:6px;height:30px;display:flex;align-items:center;}
-.ban-select-wrap .select2-container--default .select2-selection--single .select2-selection__rendered{color:#fca5a5;font-family:var(--bf);font-size:12px;font-weight:600;line-height:1;padding-left:8px;}
-.ban-select-wrap .select2-container--default .select2-selection--single .select2-selection__placeholder{color:var(--muted2);}
-.ban-select-wrap .select2-container--default .select2-selection--single .select2-selection__arrow{top:50%;transform:translateY(-50%);right:4px;}
-.ban-select-wrap .select2-container--default .select2-selection--single .select2-selection__clear{color:var(--muted2);margin-right:14px;}
-.ban-select-wrap .select2-container{width:100% !important;}
+.ban-select-wrap .hero-native-select{height:30px;color:#fca5a5;font-size:12px;border-radius:6px;padding:0 6px;}
+.ban-select-wrap .hero-search-input{height:30px;color:#fca5a5;font-size:12px;border-radius:6px;padding:0 7px;}
 .ban-clear{font-size:10px;padding:2px 0;background:none;border:none;color:var(--muted);cursor:pointer;font-family:var(--bf);font-weight:600;letter-spacing:1px;text-transform:uppercase;text-align:center;transition:color 0.15s;}
 .ban-clear:hover{color:var(--red);}
 
 /* DRAFT TIMER */
-.draft-inner{display:grid;grid-template-columns:130px 1fr 210px;gap:14px;align-items:center;padding:12px 16px;}
+.draft-inner{display:grid;grid-template-columns:130px minmax(0,1fr) 276px;gap:14px;align-items:center;padding:12px 16px;}
 .draft-clock{text-align:center;}
 .draft-phase-name{font-family:var(--hf);font-size:12px;font-weight:800;color:var(--purple);letter-spacing:2px;text-transform:uppercase;margin-bottom:2px;}
 .draft-time{font-family:var(--hf);font-size:44px;font-weight:900;color:var(--gold);line-height:1;text-shadow:0 0 20px rgba(245,158,11,0.4);}
 .draft-time.urgent{color:var(--red);text-shadow:0 0 20px rgba(239,68,68,0.6);animation:urgPulse 0.5s ease-in-out infinite alternate;}
 @keyframes urgPulse{from{opacity:1;}to{opacity:0.5;}}
 .draft-prog{font-size:11px;color:var(--muted2);margin-top:3px;}
-.draft-seq{display:flex;flex-wrap:wrap;gap:4px;}
+.draft-seq{display:flex;flex-wrap:wrap;gap:4px;min-width:0;overflow:hidden;}
 .seq-badge{padding:3px 9px;border-radius:20px;font-family:var(--hf);font-size:11px;font-weight:700;letter-spacing:0.5px;white-space:nowrap;background:var(--s3);color:var(--muted2);border:1px solid var(--border);transition:all 0.2s;}
 .seq-badge.done{background:var(--s2);color:var(--muted);border-color:transparent;}
 .seq-badge.current{background:var(--purple);color:#fff;border-color:var(--purple);box-shadow:0 0 10px rgba(139,92,246,0.4);}
-.draft-controls{display:flex;flex-direction:column;gap:6px;}
-.draft-btn-row{display:flex;gap:5px;}
-.dbtn{flex:1;padding:8px 5px;border-radius:7px;border:none;cursor:pointer;font-family:var(--hf);font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:3px;}
+.draft-controls{display:flex;flex-direction:column;gap:6px;min-width:0;width:100%;}
+.draft-btn-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;width:100%;}
+.draft-btn-row:first-child{grid-template-columns:2fr 1fr;}
+.dbtn{min-width:0;width:100%;padding:8px 6px;border-radius:7px;border:none;cursor:pointer;font-family:var(--hf);font-size:12px;font-weight:800;letter-spacing:0.8px;text-transform:uppercase;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:3px;white-space:nowrap;}
 .dbtn:hover{transform:translateY(-1px);filter:brightness(1.15);}
 .dbtn:active{transform:none;filter:none;}
 .dbtn.start{background:var(--green);color:#fff;flex:2;}
@@ -130,11 +128,23 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 
 /* Active slot highlight (from draft timer) */
 .slot-active{box-shadow:0 0 0 2px var(--gold) !important;}
-.slot-active .select2-container--default .select2-selection--single{border-color:var(--gold) !important;box-shadow:0 0 0 2px var(--gold);}
+.slot-active .hero-native-select{border-color:var(--gold) !important;box-shadow:0 0 0 2px var(--gold);}
+.slot-active .hero-search-input{border-color:var(--gold) !important;box-shadow:0 0 0 2px var(--gold);}
 
 /* Toast */
 .toast{position:fixed;bottom:66px;right:20px;background:var(--s3);color:var(--text);border:1px solid var(--border2);border-left:3px solid var(--green);padding:10px 18px;border-radius:8px;font-family:var(--hf);font-size:13px;font-weight:700;letter-spacing:0.5px;box-shadow:0 8px 24px rgba(0,0,0,0.4);transform:translateX(130%);opacity:0;transition:all 0.3s cubic-bezier(.175,.885,.32,1.275);z-index:999;}
 .toast.show{transform:translateX(0);opacity:1;}
+@media (max-width:1100px){
+  .topbar{height:auto;min-height:50px;flex-wrap:wrap;padding:8px 12px;}
+  .match-inputs{flex-wrap:wrap;}
+  .preset-tools{flex-wrap:wrap;}
+  .topbar-links{width:100%;margin-left:0;}
+  .overlay-link-group{width:100%;flex-wrap:wrap;}
+  .overlay-url-item{flex:1 1 0;min-width:150px;}
+  .overlay-url-item .tlink:first-child{flex:1;}
+  .main{grid-template-columns:1fr;}
+  .draft-inner{grid-template-columns:1fr;align-items:stretch;}
+}
 </style>
 </head>
 <body>
@@ -147,9 +157,27 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
     <input id="matchTitle" value="FW VS EA : GAME 3 [BO7]" placeholder="Match Title">
     <button class="tlink" onclick="updateMatchInfo()">SAVE</button>
   </div>
+  <div class="preset-tools">
+    <input id="presetName" placeholder="Preset name">
+    <select id="presetList"><option value="">Preset</option></select>
+    <button class="tlink" onclick="savePreset()">SAVE PRESET</button>
+    <button class="tlink" onclick="loadPreset()">LOAD</button>
+  </div>
   <div class="topbar-links">
-    <a class="tlink" href="/overlay" target="_blank">⊡ OVERLAY</a>
-    <a class="tlink" href="/result" target="_blank">📊 RESULT</a>
+    <div class="overlay-link-group">
+      <div class="overlay-url-item">
+        <a class="tlink" href="/overlay" target="_blank">OVERLAY 1080</a>
+        <button class="tlink copy-url-btn" type="button" onclick="copyOverlayUrl('/overlay')" title="Copy Overlay 1080 URL" aria-label="Copy Overlay 1080 URL">&#10697;</button>
+      </div>
+      <div class="overlay-url-item">
+        <a class="tlink" href="/overlay-1440" target="_blank">OVERLAY 1440</a>
+        <button class="tlink copy-url-btn" type="button" onclick="copyOverlayUrl('/overlay-1440')" title="Copy Overlay 1440 URL" aria-label="Copy Overlay 1440 URL">&#10697;</button>
+      </div>
+      <div class="overlay-url-item">
+        <a class="tlink" href="/result" target="_blank">RESULT</a>
+        <button class="tlink copy-url-btn" type="button" onclick="copyOverlayUrl('/result')" title="Copy Result URL" aria-label="Copy Result URL">&#10697;</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -169,7 +197,6 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
     <div class="panel-body">
       <div class="team-meta">
         <div class="field"><label>Team Name</label><input id="blueTeamName" value="FW"></div>
-        <div class="field"><label>Team Logo</label><input id="blueTeamLogo" value="blue-team.png"></div>
         <button class="bbtn primary" onclick="updateTeam('teamBlue')">SAVE</button>
       </div>
       <table class="pp-table">
@@ -202,7 +229,6 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
     <div class="panel-body">
       <div class="team-meta">
         <div class="field"><label>Team Name</label><input id="redTeamName" value="EA"></div>
-        <div class="field"><label>Team Logo</label><input id="redTeamLogo" value="red-team.png"></div>
         <button class="bbtn primary" onclick="updateTeam('teamRed')">SAVE</button>
       </div>
       <table class="pp-table">
@@ -231,20 +257,20 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
     <div class="draft-inner">
       <div class="draft-clock">
         <div class="draft-phase-name" id="draftPhaseLabel">READY</div>
-        <div class="draft-time" id="timerDisplay">—</div>
+        <div class="draft-time" id="timerDisplay">--</div>
         <div class="draft-prog" id="draftPhaseIndex">Phase 0 / 16</div>
       </div>
       <div class="draft-seq" id="draftSequenceList"></div>
       <div class="draft-controls">
         <div class="draft-btn-row">
-          <button class="dbtn start" onclick="draftStart()">▶ START</button>
-          <button class="dbtn reset" onclick="draftReset()">■ RESET</button>
+          <button class="dbtn start" onclick="draftStart()">START</button>
+          <button class="dbtn reset" onclick="draftReset()">RESET</button>
         </div>
         <div class="draft-btn-row">
-          <button class="dbtn nav" onclick="draftPrev()">◀ PREV</button>
-          <button class="dbtn pause" onclick="draftPause()">⏸</button>
-          <button class="dbtn resume" onclick="draftResume()">▶</button>
-          <button class="dbtn nav" onclick="draftNext()">NEXT ▶</button>
+          <button class="dbtn nav" onclick="draftPrev()">PREV</button>
+          <button class="dbtn pause" onclick="draftPause()">PAUSE</button>
+          <button class="dbtn resume" onclick="draftResume()">RESUME</button>
+          <button class="dbtn nav" onclick="draftNext()">NEXT</button>
         </div>
       </div>
     </div>
@@ -254,17 +280,16 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 
 <!-- BOTTOM BAR -->
 <div class="bottom-bar">
-  <button class="bbtn neutral" onclick="switchTeams()">⇄ SWITCH TEAMS</button>
+  <button class="bbtn neutral" onclick="switchTeams()">SWITCH TEAMS</button>
   <div class="bb-sep"></div>
-  <button class="bbtn danger" onclick="clearAll()">🗑 CLEAR ALL PICKS &amp; BANS</button>
+  <button class="bbtn neutral" onclick="resetMatchState()">RESET MATCH</button>
+  <button class="bbtn danger" onclick="clearAll()">CLEAR PICKS &amp; BANS</button>
   <div class="bb-status" id="bb_status">Ready</div>
 </div>
 
 <div class="toast" id="toast_el"></div>
 
 <script src="/socket.io/socket.io.js"></script>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="js/control.js"></script>
 </body>
 </html>

@@ -9,33 +9,21 @@ socket.on('stateUpdate', (state) => {
 });
 
 function heroImageUrl(hero) {
-    return 'images/heroes/' + hero.split('').map(c => c === "'" ? encodeURIComponent(c) : c).join('') + '.png';
+    return 'images/heroes/' + encodeURIComponent(hero) + '.png';
 }
 
 function heroIconUrl(hero) {
-    return 'images/heroes-icons/' + hero.split('').map(c => c === "'" ? encodeURIComponent(c) : c).join('') + '.png';
+    return 'images/heroes-icons/' + encodeURIComponent(hero) + '.png';
 }
 
 function updateResult(state) {
-    // Blue team name + logo
+    // Blue team name
     const blueNameEl = document.getElementById('blueNameResult');
     if (blueNameEl) blueNameEl.textContent = state.teamBlue.name;
 
-    const blueLogoEl = document.getElementById('blueLogoResult');
-    if (blueLogoEl && state.teamBlue.logo) {
-        blueLogoEl.src = `images/team-logos/${state.teamBlue.logo}`;
-        blueLogoEl.style.display = '';
-    }
-
-    // Red team name + logo
+    // Red team name
     const redNameEl = document.getElementById('redNameResult');
     if (redNameEl) redNameEl.textContent = state.teamRed.name;
-
-    const redLogoEl = document.getElementById('redLogoResult');
-    if (redLogoEl && state.teamRed.logo) {
-        redLogoEl.src = `images/team-logos/${state.teamRed.logo}`;
-        redLogoEl.style.display = '';
-    }
 
     // Blue picks
     state.teamBlue.picks.forEach((hero, i) => {
@@ -44,11 +32,18 @@ function updateResult(state) {
         if (!card || !artEl) return;
         if (hero) {
             card.classList.add('filled');
+            artEl.style.display = '';
+            if (card.dataset.hero !== hero) {
+                artEl.removeAttribute('src');
+                card.dataset.hero = hero;
+            }
             artEl.src = heroImageUrl(hero);
             artEl.onerror = () => { artEl.style.display = 'none'; };
         } else {
             card.classList.remove('filled');
+            card.dataset.hero = '';
             artEl.src = '';
+            artEl.style.display = '';
         }
     });
 
@@ -59,11 +54,18 @@ function updateResult(state) {
         if (!card || !artEl) return;
         if (hero) {
             card.classList.add('filled');
+            artEl.style.display = '';
+            if (card.dataset.hero !== hero) {
+                artEl.removeAttribute('src');
+                card.dataset.hero = hero;
+            }
             artEl.src = heroImageUrl(hero);
             artEl.onerror = () => { artEl.style.display = 'none'; };
         } else {
             card.classList.remove('filled');
+            card.dataset.hero = '';
             artEl.src = '';
+            artEl.style.display = '';
         }
     });
 

@@ -10,6 +10,11 @@ socket.on('stateUpdate', (state) => {
     updateOverlay(state);
 });
 
+function imageUrl(folder, name) {
+    if (!name || typeof name !== 'string') return '';
+    return `images/${folder}/${encodeURIComponent(name)}.png`;
+}
+
 function updateOverlay(state) {
     // Update team names
     document.getElementById('blueTeamName').textContent = state.teamBlue.name;
@@ -18,26 +23,6 @@ function updateOverlay(state) {
     // Update center team names
     document.getElementById('blueCenterName').textContent = state.teamBlue.name;
     document.getElementById('redCenterName').textContent = state.teamRed.name;
-    
-    // Update team logos
-    if (state.teamBlue.logo) {
-        const blueLogo = document.getElementById('blueTeamLogo');
-        blueLogo.src = `images/team-logos/${state.teamBlue.logo}`;
-        blueLogo.style.display = 'block';
-        
-        const blueCenterLogo = document.getElementById('blueCenterLogo');
-        blueCenterLogo.src = `images/team-logos/${state.teamBlue.logo}`;
-        blueCenterLogo.style.display = 'block';
-    }
-    if (state.teamRed.logo) {
-        const redLogo = document.getElementById('redTeamLogo');
-        redLogo.src = `images/team-logos/${state.teamRed.logo}`;
-        redLogo.style.display = 'block';
-        
-        const redCenterLogo = document.getElementById('redCenterLogo');
-        redCenterLogo.src = `images/team-logos/${state.teamRed.logo}`;
-        redCenterLogo.style.display = 'block';
-    }
     
     // Update scores
     document.getElementById('blueScore').textContent = state.teamBlue.score;
@@ -131,10 +116,10 @@ function updateBans(team, bans) {
                 // สร้าง img element ใหม่
                 const img = document.createElement('img');
                 img.className = 'ban-icon';
-                img.src = `images/heroes-icons/${hero}.png`;
+                img.src = imageUrl('heroes-icons', hero);
                 img.onerror = function() {
                     // ถ้าไม่มีไอคอน ลองใช้รูปเต็มแทน
-                    this.src = `images/heroes/${hero}.png`;
+                    this.src = imageUrl('heroes', hero);
                 };
                 slot.appendChild(img);
             } else {
@@ -151,9 +136,16 @@ function updatePicks(team, picks) {
             const heroImage = slot.querySelector('.hero-image');
             if (hero) {
                 slot.classList.add('filled');
-                heroImage.style.backgroundImage = `url('images/heroes/${hero}.png')`;
+                const nextImage = `url("${imageUrl('heroes', hero)}")`;
+                if (slot.dataset.hero !== hero) {
+                    heroImage.style.backgroundImage = '';
+                    heroImage.offsetHeight;
+                    slot.dataset.hero = hero;
+                }
+                heroImage.style.backgroundImage = nextImage;
             } else {
                 slot.classList.remove('filled');
+                slot.dataset.hero = '';
                 heroImage.style.backgroundImage = '';
             }
         }
