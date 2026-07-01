@@ -7,7 +7,6 @@ const HOST = process.env.HOST || '127.0.0.1';
 const PORT = Number(process.env.PORT) || 3000;
 const BASE_URL = `http://${HOST}:${PORT}`;
 const AGREEMENT_VERSION = 'noncommercial-v2';
-const APP_ICON_PATH = path.join(__dirname, 'public', 'images', 'app-icon.ico');
 
 const LICENSE_SUMMARY = [
   'ROV Overlay Tool is provided free for tournament, community, education, and personal broadcast use.',
@@ -130,7 +129,6 @@ function createWindow(route = '/', options = {}) {
     minWidth: options.minWidth || 960,
     minHeight: options.minHeight || 640,
     title: windowTitle,
-    icon: APP_ICON_PATH,
     backgroundColor: '#0f172a',
     autoHideMenuBar: false,
     webPreferences: {
