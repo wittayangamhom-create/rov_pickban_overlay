@@ -34,6 +34,7 @@ Thumbs.db
 *.bak-*
 *.tmp
 temp/
+backups/
 
 # Keep hero and team images committed when preparing a public release.
 # public/images/heroes/*.png

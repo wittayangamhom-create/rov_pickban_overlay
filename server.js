@@ -326,12 +326,10 @@ function listImageFiles(dir) {
 }
 
 function normalizeHeroesData(data) {
-  let heroes = Array.isArray(data?.heroes) ? data.heroes : [];
+  const imageHeroes = listImageFiles(HERO_IMAGE_DIR)
+    .map((name) => name.replace(/\.(png|jpg|jpeg|webp)$/i, ''));
+  let heroes = imageHeroes.length > 0 ? imageHeroes : (Array.isArray(data?.heroes) ? data.heroes : []);
   heroes = heroes.filter((hero) => typeof hero === 'string' && hero.trim()).map((hero) => hero.trim());
-  if (heroes.length === 0) {
-    heroes = listImageFiles(HERO_IMAGE_DIR)
-      .map((name) => name.replace(/\.(png|jpg|jpeg|webp)$/i, ''));
-  }
   return {
     heroes: Array.from(new Set(heroes)).sort((a, b) => a.localeCompare(b))
   };
