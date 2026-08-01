@@ -478,6 +478,11 @@ app.get('/result', (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'result.html'));
 });
 
+// หน้าตั้งค่าภาพพื้นหลัง แยกจาก Control Panel เพราะเป็นงานก่อนแข่ง
+app.get('/design', (req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, 'design.html'));
+});
+
 app.get('/api/heroes', (req, res) => {
   res.json(heroesData);
 });

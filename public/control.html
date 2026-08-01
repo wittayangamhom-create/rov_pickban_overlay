@@ -32,24 +32,8 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 .preset-tools select{width:130px;}
 .preset-tools input:focus,.preset-tools select:focus{outline:none;border-color:var(--blue);}
 
-/* Custom design uploads */
-.panel.design-panel{border-top:3px solid var(--green);}
-.design-toggles{margin-left:auto;display:flex;gap:14px;align-items:center;}
-.dtoggle{display:flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--hf);font-size:11px;font-weight:800;letter-spacing:1px;color:var(--muted2);}
-.dtoggle:hover{color:var(--text);}
-.dtoggle input{accent-color:var(--green);width:14px;height:14px;cursor:pointer;}
-.design-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
-.dslot{background:var(--s2);border:1px solid var(--border);border-radius:9px;padding:10px;display:flex;flex-direction:column;gap:7px;}
-.dslot-title{font-family:var(--hf);font-size:11px;font-weight:800;letter-spacing:1.2px;color:var(--muted2);text-transform:uppercase;}
-.dslot-title b{color:var(--text);}
-.dslot-preview{height:74px;border-radius:6px;border:1px dashed var(--border2);background:var(--s3) center/contain no-repeat;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted);letter-spacing:1px;overflow:hidden;}
-.dslot-preview.filled{border-style:solid;border-color:var(--green);}
-.dslot-actions{display:flex;gap:6px;}
-.dslot-actions .tlink{flex:1;text-align:center;padding:5px 8px;font-size:11px;}
-.dslot-actions .tlink.danger{color:#fca5a5;}
-.dslot-actions .tlink.danger:hover{color:var(--red);border-color:var(--red);}
-.design-hint{margin-top:10px;font-size:11px;color:var(--muted);line-height:1.7;}
-@media (max-width:1100px){.design-grid{grid-template-columns:repeat(2,1fr);}}
+.design-link{border-color:rgba(16,185,129,0.45);color:var(--green);}
+.design-link:hover{color:#fff;background:var(--green);border-color:var(--green);}
 
 /* Size switch: one choice, applied to every overlay and result screen */
 .size-switch{display:flex;align-items:center;gap:4px;padding:3px 6px 3px 9px;background:var(--s3);border:1px solid var(--border2);border-radius:7px;}
@@ -218,6 +202,7 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
         <button class="tlink copy-url-btn" type="button" onclick="copyOverlayUrl('/result')" title="Copy Result URL" aria-label="Copy Result URL">&#10697;</button>
       </div>
     </div>
+    <a class="tlink design-link" href="/design">DESIGN</a>
   </div>
 </div>
 
@@ -284,26 +269,6 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
       <div class="ban-section">
         <div class="ban-label-row"><span>BAN</span></div>
         <div class="ban-grid" id="red_bans"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- CUSTOM DESIGN -->
-  <div class="panel full design-panel">
-    <div class="panel-head">
-      <div style="width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);flex-shrink:0"></div>
-      <div class="panel-title" style="color:var(--green)">Custom Design</div>
-      <div class="design-toggles">
-        <label class="dtoggle"><input type="checkbox" id="skinEnabled" onchange="updateSkinOptions()"> <span>USE MY DESIGN</span></label>
-        <label class="dtoggle"><input type="checkbox" id="skinShowPanels" onchange="updateSkinOptions()" checked> <span>SHOW BUILT-IN PANELS</span></label>
-      </div>
-    </div>
-    <div class="panel-body">
-      <div class="design-grid" id="designGrid"></div>
-      <div class="design-hint">
-        ออกแบบที่อัตราส่วน 16:9 (เช่น 1920x1080) ระบบย่อขยายให้พอดีทั้งสองขนาด &nbsp;|&nbsp;
-        พื้นที่ที่อยากให้เห็นรูปฮีโร่ ให้ทำเป็นพื้นที่โปร่งใสใน PNG &nbsp;|&nbsp;
-        รองรับ PNG / JPG / WEBP ไม่เกิน 8 MB
       </div>
     </div>
   </div>

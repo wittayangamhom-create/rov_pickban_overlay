@@ -188,6 +188,11 @@ function buildMenu() {
         },
         { type: 'separator' },
         {
+          label: 'Custom Design',
+          click: () => openToolWindow('Custom Design', '/design', 1280, 900)
+        },
+        { type: 'separator' },
+        {
           label: 'Open In Browser',
           click: () => shell.openExternal(BASE_URL)
         },

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROV Custom Design</title>
+<style>
+:root{--bg:#0b0c14;--s1:#111220;--s2:#181929;--s3:#1e2035;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--blue:#3b82f6;--red:#ef4444;--gold:#f59e0b;--green:#10b981;--text:#e2e8f0;--muted:#4a5568;--muted2:#64748b;--hf:'Arial Narrow','Segoe UI Condensed','Segoe UI',Arial,sans-serif;--bf:'Segoe UI',Arial,sans-serif;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100vh;}
+
+.topbar{background:var(--s1);border-bottom:1px solid var(--border);padding:0 18px;height:50px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;}
+.logo{font-family:var(--hf);font-size:18px;font-weight:900;letter-spacing:3px;color:var(--green);white-space:nowrap;}
+.logo span{color:rgba(255,255,255,0.3);}
+.topbar-links{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.tlink{padding:5px 13px;border-radius:6px;font-family:var(--hf);font-size:12px;font-weight:800;letter-spacing:1px;cursor:pointer;border:1px solid var(--border2);background:var(--s3);color:var(--muted2);transition:all 0.2s;text-decoration:none;}
+.tlink:hover{color:var(--blue);border-color:var(--blue);}
+.tlink.danger{color:#fca5a5;}
+.tlink.danger:hover{color:var(--red);border-color:var(--red);}
+
+.wrap{max-width:1280px;margin:0 auto;padding:18px 14px 60px;}
+.panel{background:var(--s1);border-radius:12px;border:1px solid var(--border);overflow:hidden;margin-bottom:14px;}
+.panel.design-panel{border-top:3px solid var(--green);}
+.panel-head{display:flex;align-items:center;gap:10px;padding:11px 16px;background:var(--s2);border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.panel-title{font-family:var(--hf);font-size:15px;font-weight:900;letter-spacing:2px;text-transform:uppercase;}
+.panel-body{padding:16px;}
+
+.design-toggles{margin-left:auto;display:flex;gap:14px;align-items:center;}
+.dtoggle{display:flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--hf);font-size:11px;font-weight:800;letter-spacing:1px;color:var(--muted2);}
+.dtoggle:hover{color:var(--text);}
+.dtoggle input{accent-color:var(--green);width:15px;height:15px;cursor:pointer;}
+
+.design-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
+.dgroup-title{grid-column:1/-1;font-family:var(--hf);font-size:12px;font-weight:800;letter-spacing:2px;color:var(--muted);text-transform:uppercase;padding-top:6px;border-top:1px solid var(--border);}
+.dgroup-title:first-child{padding-top:0;border-top:none;}
+.dslot{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:9px;}
+.dslot-title{font-family:var(--hf);font-size:12px;font-weight:800;letter-spacing:1.2px;color:var(--muted2);text-transform:uppercase;}
+.dslot-title b{color:var(--text);}
+.dslot-note{font-size:11px;color:var(--muted);}
+.dslot-preview{aspect-ratio:16/5;border-radius:7px;border:1px dashed var(--border2);background:var(--s3) center/contain no-repeat;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);letter-spacing:1px;overflow:hidden;text-align:center;padding:8px;}
+.dslot-preview.filled{border-style:solid;border-color:var(--green);}
+.dslot-actions{display:flex;gap:7px;}
+.dslot-actions .tlink{flex:1;text-align:center;}
+
+.guide{font-size:13px;color:var(--muted2);line-height:1.9;}
+.guide b{color:var(--text);}
+.guide code{background:var(--s3);border:1px solid var(--border2);border-radius:4px;padding:1px 6px;font-size:12px;color:var(--text);}
+.guide ul{margin:8px 0 0 20px;}
+
+.toast{position:fixed;bottom:24px;right:20px;background:var(--s3);color:var(--text);border:1px solid var(--border2);border-left:3px solid var(--green);padding:10px 18px;border-radius:8px;font-family:var(--hf);font-size:13px;font-weight:700;letter-spacing:0.5px;box-shadow:0 8px 24px rgba(0,0,0,0.4);transform:translateX(130%);opacity:0;transition:all 0.3s cubic-bezier(.175,.885,.32,1.275);z-index:999;}
+.toast.show{transform:translateX(0);opacity:1;}
+@media (max-width:820px){.design-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">ROV <span>|</span> DESIGN</div>
+  <div class="topbar-links">
+    <a class="tlink" href="/">&#8592; CONTROL PANEL</a>
+    <a class="tlink" href="/overlay" target="_blank">OVERLAY</a>
+    <a class="tlink" href="/result" target="_blank">RESULT</a>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="panel design-panel">
+    <div class="panel-head">
+      <div style="width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);flex-shrink:0"></div>
+      <div class="panel-title" style="color:var(--green)">Custom Design</div>
+      <div class="design-toggles">
+        <label class="dtoggle"><input type="checkbox" id="skinEnabled" onchange="updateSkinOptions()"> <span>USE MY DESIGN</span></label>
+        <label class="dtoggle"><input type="checkbox" id="skinShowPanels" onchange="updateSkinOptions()" checked> <span>SHOW BUILT-IN PANELS</span></label>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div class="design-grid" id="designGrid"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div class="panel-title" style="color:var(--muted2)">วิธีทำภาพ</div>
+    </div>
+    <div class="panel-body guide">
+      <ul>
+        <li>ออกแบบที่อัตราส่วน <b>16:9</b> เช่น <code>1920 x 1080</code> ระบบจะย่อขยายให้พอดีทั้ง 1080p และ 1440p ไม่ต้องทำสองไฟล์</li>
+        <li>บันทึกเป็น <code>PNG</code> แบบมีพื้นหลังโปร่งใส ตรงไหนที่โปร่งใสจะเห็นรูปฮีโร่และฉากหลังทะลุขึ้นมา</li>
+        <li>ขนาดไฟล์ไม่เกิน <b>8 MB</b> รองรับ <code>PNG</code> <code>JPG</code> <code>WEBP</code></li>
+        <li>ติ๊ก <b>USE MY DESIGN</b> เพื่อเปิดใช้ภาพที่อัปโหลด</li>
+        <li>เอาติ๊ก <b>SHOW BUILT-IN PANELS</b> ออก ถ้าอยากให้เหลือแต่ภาพของคุณ ไม่มีกรอบและพื้นหลังเดิมของแอพมาทับ</li>
+        <li>เปิดหน้า OVERLAY หรือ RESULT ไว้อีกแท็บ จะเห็นผลเปลี่ยนทันทีตอนกดอัปโหลด</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast_el"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/design.js"></script>
+</body>
+</html>
