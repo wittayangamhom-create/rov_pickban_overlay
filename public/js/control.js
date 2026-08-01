@@ -12,7 +12,6 @@ let uiBuilt = false;
 let swPl = null;
 let swPk = null;
 let lastFocusedPhase = null;
-let lastTakenSignature = null;
 
 socket.on('connect', () => showToast('Connected', 'green'));
 socket.on('disconnect', () => showToast('Disconnected', 'red'));
@@ -23,7 +22,7 @@ socket.on('stateUpdate', (state) => {
   if (uiBuilt) {
     loadState(state);
     updateDraftUI(state);
-    refreshHeroDatalist();
+
   }
 });
 
@@ -102,7 +101,7 @@ async function copyOverlayUrl(path) {
 }
 
 function buildAllUI() {
-  buildHeroDatalist();
+
   ['blue', 'red'].forEach((color) => {
     buildPPTable(color);
     buildBans(color);
@@ -110,14 +109,88 @@ function buildAllUI() {
   buildDraftBadges();
 }
 
-function buildHeroDatalist() {
-  let list = document.getElementById('heroSearchList');
-  if (!list) {
-    list = document.createElement('datalist');
-    list.id = 'heroSearchList';
-    document.body.appendChild(list);
+// One shared dropdown, moved under whichever hero box has focus.
+// A native <datalist> cannot be ranked or filtered from script, so the
+// suggestion list is built by hand.
+let ddEl = null;
+let ddInput = null;
+let ddItems = [];
+let ddIndex = -1;
+
+function ensureDropdown() {
+  if (ddEl) return ddEl;
+  ddEl = document.createElement('div');
+  ddEl.className = 'hero-dd';
+  ddEl.hidden = true;
+  // mousedown, not click: click would land after blur has already closed us.
+  ddEl.addEventListener('mousedown', (event) => {
+    const item = event.target.closest('.hero-dd-item');
+    if (!item) return;
+    event.preventDefault();
+    chooseSuggestion(Number(item.dataset.index));
+  });
+  document.body.appendChild(ddEl);
+
+  // It is placed at page coordinates, so anything that moves the input out
+  // from under it must dismiss it rather than leave it floating.
+  window.addEventListener('scroll', closeDropdown, true);
+  window.addEventListener('resize', closeDropdown);
+
+  return ddEl;
+}
+
+function openDropdown(input) {
+  const el = ensureDropdown();
+  ddInput = input;
+  ddItems = matchHeroes(input.value, input.id);
+
+  if (ddItems.length === 0) {
+    closeDropdown();
+    return;
   }
-  refreshHeroDatalist();
+
+  ddIndex = 0;
+  el.textContent = '';
+  ddItems.forEach((hero, index) => {
+    const item = document.createElement('div');
+    item.className = `hero-dd-item${index === 0 ? ' active' : ''}`;
+    item.dataset.index = index;
+    item.textContent = hero;
+    el.appendChild(item);
+  });
+
+  const box = input.getBoundingClientRect();
+  el.style.left = `${box.left + window.scrollX}px`;
+  el.style.top = `${box.bottom + window.scrollY + 2}px`;
+  el.style.minWidth = `${box.width}px`;
+  el.hidden = false;
+  el.scrollTop = 0;
+}
+
+function closeDropdown() {
+  if (!ddEl) return;
+  ddEl.hidden = true;
+  ddInput = null;
+  ddItems = [];
+  ddIndex = -1;
+}
+
+function moveDropdown(step) {
+  if (ddEl?.hidden || ddItems.length === 0) return;
+  ddIndex = (ddIndex + step + ddItems.length) % ddItems.length;
+  Array.from(ddEl.children).forEach((child, index) => {
+    child.classList.toggle('active', index === ddIndex);
+  });
+  ddEl.children[ddIndex]?.scrollIntoView({ block: 'nearest' });
+}
+
+function chooseSuggestion(index) {
+  const input = ddInput;
+  const hero = ddItems[index];
+  if (!input || !hero) return;
+  input.value = hero;
+  closeDropdown();
+  commitHeroInput(input, input._onCommit, true);
 }
 
 // Every hero already banned or picked is gone for the rest of the draft.
@@ -139,28 +212,6 @@ function takenHeroes(exceptSlotId) {
   return taken;
 }
 
-// Suggest only what is still available, so the operator never has to
-// remember which heroes are gone.
-function refreshHeroDatalist() {
-  const list = document.getElementById('heroSearchList');
-  if (!list) return;
-
-  const taken = takenHeroes(null);
-  const signature = Array.from(taken).sort().join('|');
-
-  // stateUpdate arrives every second while the clock runs, but the taken
-  // heroes only change on a pick or ban. Rebuilding the list on every tick
-  // reopens the native dropdown underneath the operator and makes it flicker
-  // mid-typing, so only touch the DOM when the contents actually differ.
-  if (signature === lastTakenSignature && list.children.length > 0) return;
-  lastTakenSignature = signature;
-
-  list.textContent = '';
-  heroes.forEach((hero) => {
-    if (taken.has(hero)) return;
-    list.appendChild(new Option(hero, hero));
-  });
-}
 
 function buildPPTable(color) {
   const team = color === 'blue' ? 'teamBlue' : 'teamRed';
@@ -231,21 +282,48 @@ function makeHeroSearchInput(id, type, onCommit) {
   const input = document.createElement('input');
   input.id = id;
   input.className = 'hero-search-input';
-  input.setAttribute('list', 'heroSearchList');
   input.autocomplete = 'off';
   input.placeholder = type === 'pick' ? 'Type hero...' : 'Type ban...';
+  input._onCommit = onCommit;
 
+  // Opens on typing or ArrowDown, never on plain focus: the draft auto-focuses
+  // a slot after every phase, and a full-height list popping open over the
+  // panel each time would just be in the way.
   input.addEventListener('input', () => {
     input.dataset.pendingValue = input.value;
+    openDropdown(input);
   });
   input.addEventListener('change', () => commitHeroInput(input, onCommit));
-  input.addEventListener('blur', () => commitHeroInput(input, onCommit));
+  input.addEventListener('blur', () => {
+    closeDropdown();
+    commitHeroInput(input, onCommit);
+  });
+
   input.addEventListener('keydown', (event) => {
+    const open = ddInput === input && ddEl && !ddEl.hidden;
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      if (open) moveDropdown(1); else openDropdown(input);
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (open) moveDropdown(-1);
+      return;
+    }
     if (event.key === 'Enter') {
       event.preventDefault();
-      commitHeroInput(input, onCommit, true);
+      // Take the highlighted suggestion when the list is showing.
+      if (open && ddIndex >= 0) chooseSuggestion(ddIndex);
+      else commitHeroInput(input, onCommit, true);
+      return;
     }
     if (event.key === 'Escape') {
+      if (open) {
+        closeDropdown();
+        return;
+      }
       input.value = input.dataset.lastHero || '';
       input.blur();
     }
@@ -331,14 +409,39 @@ function setSelect(id, val) {
   }
 }
 
+// Ranking: exact name, then names starting with what was typed, then names
+// whose second word starts with it ("baron" still finds "bolt baron").
+// Loose substring matches are deliberately not offered - typing "b" should
+// never surface "ilumia" just because it contains a b somewhere.
+function startsWithAnyWord(hero, lower) {
+  return hero.toLowerCase().split(/\s+/).some((word) => word.startsWith(lower));
+}
+
 function normalizeHeroInput(value) {
   const raw = String(value || '').trim();
   if (!raw) return null;
   const lower = raw.toLowerCase();
   return heroes.find((hero) => hero.toLowerCase() === lower) ||
     heroes.find((hero) => hero.toLowerCase().startsWith(lower)) ||
-    heroes.find((hero) => hero.toLowerCase().includes(lower)) ||
+    heroes.find((hero) => startsWithAnyWord(hero, lower)) ||
     null;
+}
+
+// Suggestions for the dropdown: available heroes only, prefix matches first.
+// Returns [] when nothing matches, which hides the dropdown entirely.
+function matchHeroes(query, exceptSlotId) {
+  const taken = takenHeroes(exceptSlotId);
+  const available = heroes.filter((hero) => !taken.has(hero));
+  const lower = String(query || '').trim().toLowerCase();
+  if (!lower) return available;
+
+  const prefix = [];
+  const wordStart = [];
+  available.forEach((hero) => {
+    if (hero.toLowerCase().startsWith(lower)) prefix.push(hero);
+    else if (startsWithAnyWord(hero, lower)) wordStart.push(hero);
+  });
+  return prefix.concat(wordStart);
 }
 
 function commitHeroInput(input, onCommit, preferMatch = false) {
