@@ -481,3 +481,33 @@ body[data-size="1440"] .result-container {
     transform: scale(1.33333333);
     transform-origin: top left;
 }
+
+/* ============================================================
+   CUSTOM SKIN
+   Top half is the blue team, bottom half is the red team.
+   ============================================================ */
+
+body.skin-on .team-section.has-skin {
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 100% 100%;
+}
+
+body.panels-off .team-section:not(.has-skin) {
+    background: none;
+}
+
+body.panels-off .team-section {
+    border: none;
+    box-shadow: none;
+}
+
+body.panels-off .pick-card {
+    border-color: transparent;
+    box-shadow: none;
+}
+
+body.panels-off .ban-icon-slot {
+    background: none;
+    border-color: transparent;
+}

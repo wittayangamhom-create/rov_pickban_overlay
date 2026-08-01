@@ -22,11 +22,77 @@
 
     window.applyOverlaySize = applySize;
 
+    // --- ภาพพื้นหลังที่ผู้ใช้ออกแบบเอง ------------------------------
+    // แต่ละหน้าบอกไว้ที่ <body data-skin-slots> ว่าใช้ slot ไหนกับ element ไหน
+    // เช่น "overlayTop:.ban-section, overlayBottom:.pick-section"
+    const SKIN_FILES = {
+        overlayTop: 'overlay-top',
+        overlayBottom: 'overlay-bottom',
+        resultTop: 'result-top',
+        resultBottom: 'result-bottom'
+    };
+    const skinTargets = (body.dataset.skinSlots || '').split(',')
+        .map((pair) => pair.split(':').map((s) => s.trim()))
+        .filter(([slot, sel]) => slot && sel && SKIN_FILES[slot]);
+
+    // นามสกุลไฟล์ไม่ได้เก็บไว้ใน state จึงลองทีละแบบจนกว่าจะโหลดได้
+    const EXTS = ['png', 'jpg', 'webp'];
+    const resolved = {};
+
+    function findSkinUrl(slot, version) {
+        const cacheKey = slot + ':' + version;
+        if (resolved[cacheKey]) return Promise.resolve(resolved[cacheKey]);
+
+        return EXTS.reduce((chain, ext) => chain.then((found) => {
+            if (found) return found;
+            const url = `images/skins/${SKIN_FILES[slot]}.${ext}?v=${version}`;
+            return new Promise((res) => {
+                const img = new Image();
+                img.onload = () => res(url);
+                img.onerror = () => res(null);
+                img.src = url;
+            });
+        }), Promise.resolve(null)).then((url) => {
+            if (url) resolved[cacheKey] = url;
+            return url;
+        });
+    }
+
+    function applySkin(skin) {
+        const on = Boolean(skin && skin.enabled);
+        body.classList.toggle('skin-on', on);
+        body.classList.toggle('panels-off', Boolean(skin) && skin.showPanels === false);
+
+        skinTargets.forEach(([slot, selector]) => {
+            const el = document.querySelector(selector);
+            if (!el) return;
+            const version = (skin && skin.slots && skin.slots[slot]) || 0;
+
+            if (!on || !version) {
+                el.style.backgroundImage = '';
+                el.classList.remove('has-skin');
+                return;
+            }
+            findSkinUrl(slot, version).then((url) => {
+                if (!url) return;
+                el.style.backgroundImage = `url("${url}")`;
+                el.classList.add('has-skin');
+            });
+        });
+    }
+
     applySize(locked || '1080');
-    if (locked) return; // หน้าที่ล็อกไว้ ไม่ต้องฟัง state
+    if (locked) {
+        // หน้าที่ล็อกขนาดไว้ ยังต้องรับภาพพื้นหลังตามปกติ
+        if (typeof socket !== 'undefined') socket.on('stateUpdate', (s) => applySkin(s && s.skin));
+        return;
+    }
 
     // socket ถูกสร้างไว้แล้วในไฟล์หลักของแต่ละหน้า
     if (typeof socket !== 'undefined') {
-        socket.on('stateUpdate', (state) => applySize(state && state.overlaySize));
+        socket.on('stateUpdate', (state) => {
+            applySize(state && state.overlaySize);
+            applySkin(state && state.skin);
+        });
     }
 })();

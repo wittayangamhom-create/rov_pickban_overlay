@@ -72,6 +72,19 @@ const DRAFT_SEQUENCE = [
 // sanitizeState during module init, so anything it reaches must already exist.
 const OVERLAY_SIZES = ['1080', '1440'];
 
+// ภาพพื้นหลังที่ผู้ใช้ออกแบบเอง แยกเป็นส่วนบนและส่วนล่างของแต่ละหน้า
+// overlay: บน = แถบ ban/score/timer, ล่าง = การ์ด pick
+// result:  บน = ฝั่งน้ำเงิน, ล่าง = ฝั่งแดง
+const SKIN_SLOTS = {
+  overlayTop: 'overlay-top',
+  overlayBottom: 'overlay-bottom',
+  resultTop: 'result-top',
+  resultBottom: 'result-bottom'
+};
+const SKIN_DIR = path.join(__dirname, 'public', 'images', 'skins');
+const SKIN_MAX_BYTES = 8 * 1024 * 1024;
+const SKIN_TYPES = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
+
 const defaultState = {
   teamBlue: {
     name: 'BLUE',
@@ -95,6 +108,12 @@ const defaultState = {
   draftRunning: false,
   // เลือกครั้งเดียว มีผลกับทุกหน้าจอ overlay และ result
   overlaySize: '1080',
+  skin: {
+    enabled: false,     // ใช้ภาพที่อัปโหลดเป็นพื้นหลังหรือไม่
+    showPanels: true,   // ยังวาดกรอบ/พื้นหลังแบบเดิมของแอพอยู่หรือไม่
+    // 0 = ยังไม่มีภาพ, ตัวเลขอื่น = เวอร์ชันไว้กัน cache
+    slots: { overlayTop: 0, overlayBottom: 0, resultTop: 0, resultBottom: 0 }
+  },
   matchInfo: {
     title: 'BLUE VS RED',
     tournament: 'ROV Tournament'
@@ -150,6 +169,32 @@ function sanitizeHero(value) {
 
 function sanitizeOverlaySize(value) {
   return OVERLAY_SIZES.includes(String(value)) ? String(value) : defaultState.overlaySize;
+}
+
+function sanitizeSkin(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const slotsIn = source.slots && typeof source.slots === 'object' ? source.slots : {};
+  const slots = {};
+  Object.keys(SKIN_SLOTS).forEach((key) => {
+    const n = Number(slotsIn[key]);
+    slots[key] = Number.isFinite(n) && n > 0 ? Math.trunc(n) : 0;
+  });
+  return {
+    enabled: source.enabled === true,
+    showPanels: source.showPanels !== false,
+    slots
+  };
+}
+
+// ชื่อไฟล์มาจากตารางที่กำหนดไว้เท่านั้น ไม่เอาค่าจากผู้ใช้มาต่อ path ตรงๆ
+function skinFilePath(slot, ext) {
+  return path.join(SKIN_DIR, `${SKIN_SLOTS[slot]}.${ext}`);
+}
+
+function removeSkinFiles(slot) {
+  Object.values(SKIN_TYPES).forEach((ext) => {
+    try { fs.unlinkSync(skinFilePath(slot, ext)); } catch { /* ไม่มีไฟล์ก็ข้ามไป */ }
+  });
 }
 
 function sanitizeTimer(value) {
@@ -228,6 +273,7 @@ function sanitizeState(state) {
     draftActiveSlots: Array.isArray(source.draftActiveSlots) ? source.draftActiveSlots.filter(isSlotId).slice(0, 2) : [],
     draftRunning: false,
     overlaySize: sanitizeOverlaySize(source.overlaySize),
+    skin: sanitizeSkin(source.skin),
     matchInfo: {
       title: sanitizeText(source.matchInfo?.title, 80) || defaultState.matchInfo.title,
       tournament: sanitizeText(source.matchInfo?.tournament, 50) || defaultState.matchInfo.tournament
@@ -469,6 +515,64 @@ app.post('/api/presets/load', requireControl, (req, res) => {
   res.json({ ok: true, state: gameState });
 });
 
+// อัปโหลดภาพพื้นหลังที่ออกแบบเอง
+//
+// รับ body เป็นไฟล์ดิบ ไม่ใช้ multipart จะได้ไม่ต้องเพิ่ม dependency
+// ตรวจสามชั้น: ชื่อ slot ต้องอยู่ในตารางที่กำหนด, content-type ต้องเป็นภาพ
+// ที่รองรับ และ magic bytes ต้องตรงกับชนิดที่บอกมาจริงๆ
+const SKIN_MAGIC = {
+  png: (b) => b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47,
+  jpg: (b) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
+  webp: (b) => b.length > 12 && b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP'
+};
+
+app.post(
+  '/api/skin/:slot',
+  requireControl,
+  express.raw({ type: Object.keys(SKIN_TYPES), limit: SKIN_MAX_BYTES }),
+  (req, res) => {
+    const slot = req.params.slot;
+    if (!Object.prototype.hasOwnProperty.call(SKIN_SLOTS, slot)) {
+      return res.status(400).json({ error: 'Unknown skin slot' });
+    }
+
+    const ext = SKIN_TYPES[String(req.get('content-type')).split(';')[0].trim()];
+    if (!ext) return res.status(415).json({ error: 'Use a PNG, JPG or WEBP image' });
+
+    const body = req.body;
+    if (!Buffer.isBuffer(body) || body.length === 0) {
+      return res.status(400).json({ error: 'Empty upload' });
+    }
+    if (!SKIN_MAGIC[ext](body)) {
+      return res.status(400).json({ error: 'File contents do not match its type' });
+    }
+
+    try {
+      fs.mkdirSync(SKIN_DIR, { recursive: true });
+      removeSkinFiles(slot); // กันกรณีเปลี่ยนนามสกุล จะได้ไม่เหลือไฟล์เก่าค้าง
+      fs.writeFileSync(skinFilePath(slot, ext), body);
+    } catch (error) {
+      return res.status(500).json({ error: `Could not save image: ${error.message}` });
+    }
+
+    gameState.skin.slots[slot] = Date.now();
+    gameState.skin.enabled = true;
+    emitState();
+    res.json({ ok: true, slot, ext, bytes: body.length, skin: gameState.skin });
+  }
+);
+
+app.delete('/api/skin/:slot', requireControl, (req, res) => {
+  const slot = req.params.slot;
+  if (!Object.prototype.hasOwnProperty.call(SKIN_SLOTS, slot)) {
+    return res.status(400).json({ error: 'Unknown skin slot' });
+  }
+  removeSkinFiles(slot);
+  gameState.skin.slots[slot] = 0;
+  emitState();
+  res.json({ ok: true, skin: gameState.skin });
+});
+
 app.post('/api/reset-state', requireControl, (req, res) => {
   stopDraftTimer();
   gameState = sanitizeState(defaultState);
@@ -566,6 +670,12 @@ io.on('connection', (socket) => {
   controlEvent(socket, 'updateTimer', (timer) => {
     gameState.timer = sanitizeTimer(timer);
     draftSeconds = parseTimeToSeconds(gameState.timer);
+    emitState();
+  });
+
+  controlEvent(socket, 'updateSkinOptions', (data) => {
+    if (typeof data?.enabled === 'boolean') gameState.skin.enabled = data.enabled;
+    if (typeof data?.showPanels === 'boolean') gameState.skin.showPanels = data.showPanels;
     emitState();
   });
 

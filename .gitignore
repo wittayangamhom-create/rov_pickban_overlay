@@ -35,6 +35,11 @@ Thumbs.db
 *.tmp
 temp/
 
+# Designs uploaded from the Control Panel are the user's own artwork,
+# not project source. The folder and its README stay tracked.
+public/images/skins/*
+!public/images/skins/README.md
+
 # Keep hero and team images committed when preparing a public release.
 # public/images/heroes/*.png
 # public/images/team-logos/*.png

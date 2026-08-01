@@ -925,3 +925,59 @@ body {
         animation: none;
     }
 }
+
+/* ============================================================
+   CUSTOM SKIN
+   A designed image can back the top and bottom sections. The
+   built-in panels stay unless they are switched off, so both
+   looks are available and can be compared.
+   ============================================================ */
+
+/* The image is authored 16:9 and stretched to the section, so one file
+   serves both 1080p and 1440p. */
+body.skin-on .ban-section.has-skin,
+body.skin-on .pick-section.has-skin {
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 100% 100%;
+}
+
+/* Built-in panel art off: the design carries the frame and CSS only
+   positions content on top of it. Anything structural - size, position,
+   layout - is deliberately untouched. */
+body.panels-off .ban-section,
+body.panels-off .pick-section {
+    border: none;
+    box-shadow: none;
+}
+
+body.panels-off .ban-section:not(.has-skin),
+body.panels-off .pick-section:not(.has-skin) {
+    background: none;
+}
+
+body.panels-off .pick-slot,
+body.panels-off .blue-team .pick-slot,
+body.panels-off .red-team .pick-slot,
+body.panels-off .ban-slot {
+    background: none;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+body.panels-off .pick-slot::before,
+body.panels-off .pick-section::before,
+body.panels-off .pick-section::after,
+body.panels-off .ban-section::before {
+    display: none;
+}
+
+body.panels-off .team-center-card {
+    background: none;
+    border-color: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+}
+
+/* The active-slot highlight survives on purpose - the operator needs to see
+   which slot the draft is on regardless of which look is chosen. */

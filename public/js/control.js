@@ -101,6 +101,7 @@ async function copyOverlayUrl(path) {
 }
 
 function buildAllUI() {
+  buildDesignGrid();
 
   ['blue', 'red'].forEach((color) => {
     buildPPTable(color);
@@ -395,6 +396,7 @@ function loadState(state) {
   const td = document.getElementById('timerDisplay');
   if (td && state.draftLabel !== 'coming soon') td.textContent = state.timer || '--';
   renderOverlaySize(state.overlaySize);
+  renderSkin(state.skin);
 }
 
 function setVal(id, val) {
@@ -479,6 +481,145 @@ function updateTeam(team) {
     if (value !== undefined) socket.emit('updatePlayerName', { team, index: i, name: value });
   }
   showToast(`${color === 'blue' ? 'Blue' : 'Red'} team saved`, 'blue');
+}
+
+// --- Custom design (skin) uploads -------------------------------------
+const SKIN_SLOTS = [
+  { key: 'overlayTop', page: 'Overlay', part: 'Top', note: 'ban / score / timer' },
+  { key: 'overlayBottom', page: 'Overlay', part: 'Bottom', note: 'pick cards' },
+  { key: 'resultTop', page: 'Result', part: 'Top', note: 'blue team half' },
+  { key: 'resultBottom', page: 'Result', part: 'Bottom', note: 'red team half' }
+];
+const SKIN_FILES = {
+  overlayTop: 'overlay-top',
+  overlayBottom: 'overlay-bottom',
+  resultTop: 'result-top',
+  resultBottom: 'result-bottom'
+};
+
+function buildDesignGrid() {
+  const grid = document.getElementById('designGrid');
+  if (!grid) return;
+  grid.textContent = '';
+
+  SKIN_SLOTS.forEach(({ key, page, part, note }) => {
+    const card = document.createElement('div');
+    card.className = 'dslot';
+
+    const title = document.createElement('div');
+    title.className = 'dslot-title';
+    title.innerHTML = `${page} <b>${part}</b>`;
+
+    const preview = document.createElement('div');
+    preview.className = 'dslot-preview';
+    preview.id = `skinPreview_${key}`;
+    preview.textContent = note.toUpperCase();
+
+    // ปุ่มเลือกไฟล์ซ่อนไว้ ให้ปุ่มปกติเป็นตัวกด เพื่อให้หน้าตาเข้าชุดกัน
+    const file = document.createElement('input');
+    file.type = 'file';
+    file.accept = 'image/png,image/jpeg,image/webp';
+    file.style.display = 'none';
+    file.addEventListener('change', () => {
+      if (file.files[0]) uploadSkin(key, file.files[0]);
+      file.value = '';
+    });
+
+    const upload = document.createElement('button');
+    upload.className = 'tlink';
+    upload.type = 'button';
+    upload.textContent = 'UPLOAD';
+    upload.addEventListener('click', () => file.click());
+
+    const clear = document.createElement('button');
+    clear.className = 'tlink danger';
+    clear.type = 'button';
+    clear.textContent = 'CLEAR';
+    clear.addEventListener('click', () => clearSkin(key));
+
+    const actions = document.createElement('div');
+    actions.className = 'dslot-actions';
+    actions.append(upload, clear);
+
+    card.append(title, preview, actions, file);
+    grid.appendChild(card);
+  });
+}
+
+async function uploadSkin(slot, file) {
+  if (file.size > 8 * 1024 * 1024) {
+    showToast('Image is over 8 MB', 'red');
+    return;
+  }
+  try {
+    const response = await fetch(withToken(`/api/skin/${slot}`), {
+      method: 'POST',
+      headers: {
+        'Content-Type': file.type,
+        ...(controlToken ? { Authorization: `Bearer ${controlToken}` } : {})
+      },
+      body: file
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || response.statusText);
+    showToast(`${slot} design uploaded`, 'green');
+  } catch (error) {
+    showToast(error.message || 'Upload failed', 'red');
+  }
+}
+
+async function clearSkin(slot) {
+  try {
+    await fetchJson(`/api/skin/${slot}`, { method: 'DELETE' });
+    showToast(`${slot} design cleared`, 'red');
+  } catch (error) {
+    showToast(error.message, 'red');
+  }
+}
+
+function updateSkinOptions() {
+  socket.emit('updateSkinOptions', {
+    enabled: document.getElementById('skinEnabled')?.checked,
+    showPanels: document.getElementById('skinShowPanels')?.checked
+  });
+}
+
+function renderSkin(skin) {
+  if (!skin) return;
+  const enabled = document.getElementById('skinEnabled');
+  const panels = document.getElementById('skinShowPanels');
+  if (enabled && document.activeElement !== enabled) enabled.checked = skin.enabled === true;
+  if (panels && document.activeElement !== panels) panels.checked = skin.showPanels !== false;
+
+  SKIN_SLOTS.forEach(({ key, note }) => {
+    const preview = document.getElementById(`skinPreview_${key}`);
+    if (!preview) return;
+    const version = skin.slots?.[key] || 0;
+
+    if (!version) {
+      preview.style.backgroundImage = '';
+      preview.classList.remove('filled');
+      preview.textContent = note.toUpperCase();
+      return;
+    }
+    if (preview.dataset.version === String(version)) return;
+    preview.dataset.version = String(version);
+    preview.textContent = '';
+    preview.classList.add('filled');
+    // นามสกุลไม่ได้เก็บใน state ลองทีละแบบจนกว่าจะเจอ
+    ['png', 'jpg', 'webp'].reduce((chain, ext) => chain.then((found) => {
+      if (found) return found;
+      const url = `images/skins/${SKIN_FILES[key]}.${ext}?v=${version}`;
+      return new Promise((res) => {
+        const img = new Image();
+        img.onload = () => res(url);
+        img.onerror = () => res(null);
+        img.src = url;
+      });
+    }), Promise.resolve(null)).then((url) => {
+      if (url) preview.style.backgroundImage = `url("${url}")`;
+    });
+  });
 }
 
 function setOverlaySize(size) {
