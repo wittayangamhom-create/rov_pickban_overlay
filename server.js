@@ -70,28 +70,28 @@ const DRAFT_SEQUENCE = [
 
 const defaultState = {
   teamBlue: {
-    name: 'FW',
+    name: 'BLUE',
     score: 0,
     picks: [null, null, null, null, null],
     bans: [null, null, null, null],
-    players: ['NAILIU', 'ZHAN', 'ZHENZHE', 'VUXIANG(C)', 'WETZ']
+    players: ['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5']
   },
   teamRed: {
-    name: 'EA',
-    score: 2,
+    name: 'RED',
+    score: 0,
     picks: [null, null, null, null, null],
     bans: [null, null, null, null],
-    players: ['PICHU(C)', 'NEGAN', 'QQ', 'NBANK', 'SRY']
+    players: ['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5']
   },
   currentPhase: 'BAN',
-  timer: '00:17',
+  timer: '00:00',
   draftPhaseIndex: -1,
   draftLabel: '',
   draftActiveSlots: [],
   draftRunning: false,
   matchInfo: {
-    title: 'FW VS EA : GAME 3 [BO7]',
-    tournament: 'ROV Premier League'
+    title: 'BLUE VS RED',
+    tournament: 'ROV Tournament'
   }
 };
 
@@ -165,11 +165,50 @@ function sanitizeTeam(team, fallback) {
   };
 }
 
+// A hero can only appear once in a draft. Once banned or picked by either
+// team it is gone, so the same name must never occupy two slots.
+// slotOwner is the one slot allowed to already hold it - the slot being edited.
+function isHeroTaken(state, hero, slotOwner) {
+  if (!hero) return false;
+
+  return ['teamBlue', 'teamRed'].some((teamKey) => (
+    ['picks', 'bans'].some((type) => (
+      state[teamKey][type].some((value, index) => {
+        if (value !== hero) return false;
+        const isOwnSlot = slotOwner &&
+          slotOwner.team === teamKey &&
+          slotOwner.type === type &&
+          slotOwner.index === index;
+        return !isOwnSlot;
+      })
+    ))
+  ));
+}
+
+// Presets and hand-edited state files can still contain duplicates.
+// Keep the first occurrence and drop the rest so the invariant always holds.
+function dropDuplicateHeroes(state) {
+  const seen = new Set();
+
+  ['teamBlue', 'teamRed'].forEach((teamKey) => {
+    ['bans', 'picks'].forEach((type) => {
+      state[teamKey][type] = state[teamKey][type].map((hero) => {
+        if (!hero) return null;
+        if (seen.has(hero)) return null;
+        seen.add(hero);
+        return hero;
+      });
+    });
+  });
+
+  return state;
+}
+
 function sanitizeState(state) {
   const source = state && typeof state === 'object' ? state : {};
   const phaseIndex = clampNumber(source.draftPhaseIndex, -1, DRAFT_SEQUENCE.length);
   const phase = DRAFT_SEQUENCE[phaseIndex];
-  return {
+  return dropDuplicateHeroes({
     teamBlue: sanitizeTeam(source.teamBlue, defaultState.teamBlue),
     teamRed: sanitizeTeam(source.teamRed, defaultState.teamRed),
     currentPhase: source.currentPhase === 'PICK' ? 'PICK' : 'BAN',
@@ -182,7 +221,7 @@ function sanitizeState(state) {
       title: sanitizeText(source.matchInfo?.title, 80) || defaultState.matchInfo.title,
       tournament: sanitizeText(source.matchInfo?.tournament, 50) || defaultState.matchInfo.tournament
     }
-  };
+  });
 }
 
 function saveStateSoon() {
@@ -199,6 +238,27 @@ function saveStateSoon() {
 function emitState() {
   io.emit('stateUpdate', gameState);
   saveStateSoon();
+}
+
+// Undo only covers the teams, never the clock. Rewinding the timer mid-draft
+// would be worse than the mistake being undone.
+const UNDO_LIMIT = 40;
+const undoStack = [];
+
+function pushUndo() {
+  undoStack.push({
+    teamBlue: deepClone(gameState.teamBlue),
+    teamRed: deepClone(gameState.teamRed)
+  });
+  if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+}
+
+function popUndo() {
+  const previous = undoStack.pop();
+  if (!previous) return false;
+  gameState.teamBlue = previous.teamBlue;
+  gameState.teamRed = previous.teamRed;
+  return true;
 }
 
 function isTeamKey(team) {
@@ -430,35 +490,60 @@ io.on('connection', (socket) => {
 
   controlEvent(socket, 'updatePick', ({ team, index, hero }) => {
     if (!isTeamKey(team) || !isPickIndex(index)) return;
-    gameState[team].picks[index] = sanitizeHero(hero);
+    const next = sanitizeHero(hero);
+    if (isHeroTaken(gameState, next, { team, type: 'picks', index })) {
+      socket.emit('controlError', { message: `${next} is already used in this draft` });
+      socket.emit('stateUpdate', gameState);
+      return;
+    }
+    pushUndo();
+    gameState[team].picks[index] = next;
     emitState();
     checkAndAdvancePhase();
   });
 
   controlEvent(socket, 'updateBan', ({ team, index, hero }) => {
     if (!isTeamKey(team) || !isBanIndex(index)) return;
-    gameState[team].bans[index] = sanitizeHero(hero);
+    const next = sanitizeHero(hero);
+    if (isHeroTaken(gameState, next, { team, type: 'bans', index })) {
+      socket.emit('controlError', { message: `${next} is already used in this draft` });
+      socket.emit('stateUpdate', gameState);
+      return;
+    }
+    pushUndo();
+    gameState[team].bans[index] = next;
     emitState();
     checkAndAdvancePhase();
   });
 
   controlEvent(socket, 'clearPick', ({ team, index }) => {
     if (!isTeamKey(team) || !isPickIndex(index)) return;
+    pushUndo();
     gameState[team].picks[index] = null;
     emitState();
   });
 
   controlEvent(socket, 'clearBan', ({ team, index }) => {
     if (!isTeamKey(team) || !isBanIndex(index)) return;
+    pushUndo();
     gameState[team].bans[index] = null;
     emitState();
   });
 
   controlEvent(socket, 'clearAll', () => {
+    pushUndo();
     gameState.teamBlue.picks = [null, null, null, null, null];
     gameState.teamBlue.bans = [null, null, null, null];
     gameState.teamRed.picks = [null, null, null, null, null];
     gameState.teamRed.bans = [null, null, null, null];
+    emitState();
+  });
+
+  controlEvent(socket, 'undo', () => {
+    if (!popUndo()) {
+      socket.emit('controlError', { message: 'Nothing to undo' });
+      return;
+    }
     emitState();
   });
 
@@ -482,6 +567,7 @@ io.on('connection', (socket) => {
   });
 
   controlEvent(socket, 'switchTeams', () => {
+    pushUndo();
     const tempTeam = deepClone(gameState.teamBlue);
     gameState.teamBlue = deepClone(gameState.teamRed);
     gameState.teamRed = tempTeam;
@@ -520,6 +606,7 @@ io.on('connection', (socket) => {
 
   controlEvent(socket, 'swapPicks', ({ team, index1, index2 }) => {
     if (!isTeamKey(team) || !isPickIndex(index1) || !isPickIndex(index2)) return;
+    pushUndo();
     const picks = gameState[team].picks;
     [picks[index1], picks[index2]] = [picks[index2], picks[index1]];
     emitState();

@@ -11,6 +11,7 @@ let latestState = null;
 let uiBuilt = false;
 let swPl = null;
 let swPk = null;
+let lastFocusedPhase = null;
 
 socket.on('connect', () => showToast('Connected', 'green'));
 socket.on('disconnect', () => showToast('Disconnected', 'red'));
@@ -21,6 +22,7 @@ socket.on('stateUpdate', (state) => {
   if (uiBuilt) {
     loadState(state);
     updateDraftUI(state);
+    refreshHeroDatalist();
   }
 });
 
@@ -114,8 +116,39 @@ function buildHeroDatalist() {
     list.id = 'heroSearchList';
     document.body.appendChild(list);
   }
+  refreshHeroDatalist();
+}
+
+// Every hero already banned or picked is gone for the rest of the draft.
+// exceptSlotId lets the slot being edited keep its own hero.
+function takenHeroes(exceptSlotId) {
+  const taken = new Set();
+  if (!latestState) return taken;
+
+  [['blue', 'teamBlue'], ['red', 'teamRed']].forEach(([color, teamKey]) => {
+    [['Pick', 'picks'], ['Ban', 'bans']].forEach(([kind, field]) => {
+      (latestState[teamKey]?.[field] || []).forEach((hero, index) => {
+        if (!hero) return;
+        if (`${color}${kind}${index}` === exceptSlotId) return;
+        taken.add(hero);
+      });
+    });
+  });
+
+  return taken;
+}
+
+// Suggest only what is still available, so the operator never has to
+// remember which heroes are gone.
+function refreshHeroDatalist() {
+  const list = document.getElementById('heroSearchList');
+  if (!list) return;
+  const taken = takenHeroes(null);
   list.textContent = '';
-  heroes.forEach((hero) => list.appendChild(new Option(hero, hero)));
+  heroes.forEach((hero) => {
+    if (taken.has(hero)) return;
+    list.appendChild(new Option(hero, hero));
+  });
 }
 
 function buildPPTable(color) {
@@ -305,6 +338,12 @@ function commitHeroInput(input, onCommit, preferMatch = false) {
     showToast('Hero not found', 'red');
     return;
   }
+  // The server enforces this too; checking here just makes the feedback instant.
+  if (hero && takenHeroes(input.id).has(hero)) {
+    input.value = previous;
+    showToast(`${hero} is already used`, 'red');
+    return;
+  }
   const next = hero || null;
   input.value = next || '';
   input.dataset.lastHero = next || '';
@@ -447,6 +486,34 @@ function updateDraftUI(state) {
     document.getElementById(wrapId)?.classList.add('slot-active');
   });
 
+  // Only when the phase actually changes. stateUpdate fires every second while
+  // the clock runs, and grabbing focus on every tick would make typing impossible.
+  if (idx !== lastFocusedPhase) {
+    lastFocusedPhase = idx;
+    focusActiveSlot(state);
+  }
+}
+
+function focusActiveSlot(state) {
+  const slots = state.draftActiveSlots || [];
+  if (slots.length === 0) return;
+
+  // Leave the operator alone if they are filling in team or player names.
+  const active = document.activeElement;
+  const inHeroField = active?.classList?.contains('hero-search-input');
+  if (active && active.tagName === 'INPUT' && !inHeroField) return;
+
+  // A phase can own two slots (e.g. "Red Pick 1+2"); go to the first empty one.
+  const targetId = slots.find((slotId) => {
+    const el = document.getElementById(slotId);
+    return el && !el.value;
+  }) || slots[0];
+
+  const target = document.getElementById(targetId);
+  if (!target) return;
+  target.focus();
+  target.select();
+
   const bs = document.getElementById('bb_status');
   if (bs) {
     bs.textContent = idx < 0 ? 'Ready' : idx >= total ? 'Done' :
@@ -459,6 +526,56 @@ function parseTimeToSecs(t) {
   const parts = String(t).split(':');
   return parts.length === 2 ? parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10) : parseInt(t, 10) || 0;
 }
+
+function undoLast() { socket.emit('undo'); }
+
+function isTypingField(el) {
+  if (!el) return false;
+  return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT';
+}
+
+// The draft auto-focuses an empty hero box after every phase, so a plain
+// "is the cursor in a field" check would kill the shortcuts exactly when they
+// are needed. An empty hero box has nothing to edit, so let them through.
+// Once something is typed the keys go back to normal editing - which matters
+// for hero names containing a space, like "bolt baron".
+function shortcutsAllowed() {
+  const el = document.activeElement;
+  if (!isTypingField(el)) return true;
+  return el.classList.contains('hero-search-input') && el.value === '';
+}
+
+// Shortcuts stay out of the way while the operator is typing a name.
+// Press Escape to leave a hero box, then Space / arrows work.
+document.addEventListener('keydown', (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+    const el = document.activeElement;
+    // Inside a box with text, Ctrl+Z should undo the typing, not the draft.
+    if (isTypingField(el) && el.value) return;
+    event.preventDefault();
+    undoLast();
+    return;
+  }
+
+  if (!shortcutsAllowed()) return;
+
+  if (event.code === 'Space') {
+    event.preventDefault();
+    if (latestState?.draftRunning) draftPause(); else draftResume();
+    return;
+  }
+
+  if (event.key === 'ArrowRight') {
+    event.preventDefault();
+    draftNext();
+    return;
+  }
+
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault();
+    draftPrev();
+  }
+});
 
 function draftStart() { socket.emit('draftStart'); showToast('Draft started', 'green'); }
 function draftPause() { socket.emit('draftPause'); showToast('Paused'); }

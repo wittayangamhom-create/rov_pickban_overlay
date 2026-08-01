@@ -124,7 +124,10 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 .bbtn.neutral{background:var(--s3);color:var(--muted2);border:1px solid var(--border2);}
 .bbtn.neutral:hover{color:var(--text);}
 .bb-sep{width:1px;height:24px;background:var(--border);}
-.bb-status{font-size:12px;color:var(--muted2);margin-left:auto;font-family:var(--hf);letter-spacing:1px;}
+.bb-status{font-size:12px;color:var(--muted2);margin-left:16px;font-family:var(--hf);letter-spacing:1px;white-space:nowrap;}
+.kbd-hint{margin-left:auto;display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--muted);letter-spacing:0.3px;}
+.kbd-hint b{color:var(--muted2);background:var(--s3);border:1px solid var(--border2);border-radius:4px;padding:1px 5px;margin-right:3px;font-family:var(--hf);font-weight:800;letter-spacing:0.5px;}
+@media (max-width:1100px){.kbd-hint{display:none;}}
 
 /* Active slot highlight (from draft timer) */
 .slot-active{box-shadow:0 0 0 2px var(--gold) !important;}
@@ -153,8 +156,8 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 <div class="topbar">
   <div class="logo">ROV <span>|</span> CONTROL</div>
   <div class="match-inputs">
-    <input id="tournamentName" value="ROV Premier League" placeholder="Tournament">
-    <input id="matchTitle" value="FW VS EA : GAME 3 [BO7]" placeholder="Match Title">
+    <input id="tournamentName" value="ROV Tournament" placeholder="Tournament">
+    <input id="matchTitle" value="BLUE VS RED" placeholder="Match Title">
     <button class="tlink" onclick="updateMatchInfo()">SAVE</button>
   </div>
   <div class="preset-tools">
@@ -196,7 +199,7 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
     </div>
     <div class="panel-body">
       <div class="team-meta">
-        <div class="field"><label>Team Name</label><input id="blueTeamName" value="FW"></div>
+        <div class="field"><label>Team Name</label><input id="blueTeamName" value="BLUE"></div>
         <button class="bbtn primary" onclick="updateTeam('teamBlue')">SAVE</button>
       </div>
       <table class="pp-table">
@@ -223,12 +226,12 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
       <div class="panel-title" style="color:var(--red)">Red Team</div>
       <div class="score-badge">
         <label>SCORE</label>
-        <input class="score-input" id="redScore" type="number" value="2" min="0">
+        <input class="score-input" id="redScore" type="number" value="0" min="0">
       </div>
     </div>
     <div class="panel-body">
       <div class="team-meta">
-        <div class="field"><label>Team Name</label><input id="redTeamName" value="EA"></div>
+        <div class="field"><label>Team Name</label><input id="redTeamName" value="RED"></div>
         <button class="bbtn primary" onclick="updateTeam('teamRed')">SAVE</button>
       </div>
       <table class="pp-table">
@@ -280,10 +283,19 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 
 <!-- BOTTOM BAR -->
 <div class="bottom-bar">
+  <button class="bbtn primary" onclick="undoLast()" title="Undo last pick / ban (Ctrl+Z)">&#8630; UNDO</button>
+  <div class="bb-sep"></div>
   <button class="bbtn neutral" onclick="switchTeams()">SWITCH TEAMS</button>
   <div class="bb-sep"></div>
   <button class="bbtn neutral" onclick="resetMatchState()">RESET MATCH</button>
   <button class="bbtn danger" onclick="clearAll()">CLEAR PICKS &amp; BANS</button>
+  <div class="kbd-hint">
+    <span><b>Enter</b> confirm hero</span>
+    <span><b>Esc</b> leave box</span>
+    <span><b>Space</b> pause</span>
+    <span><b>&#8592; &#8594;</b> phase</span>
+    <span><b>Ctrl+Z</b> undo</span>
+  </div>
   <div class="bb-status" id="bb_status">Ready</div>
 </div>
 
