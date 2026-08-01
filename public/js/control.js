@@ -12,6 +12,7 @@ let uiBuilt = false;
 let swPl = null;
 let swPk = null;
 let lastFocusedPhase = null;
+let lastTakenSignature = null;
 
 socket.on('connect', () => showToast('Connected', 'green'));
 socket.on('disconnect', () => showToast('Disconnected', 'red'));
@@ -143,7 +144,17 @@ function takenHeroes(exceptSlotId) {
 function refreshHeroDatalist() {
   const list = document.getElementById('heroSearchList');
   if (!list) return;
+
   const taken = takenHeroes(null);
+  const signature = Array.from(taken).sort().join('|');
+
+  // stateUpdate arrives every second while the clock runs, but the taken
+  // heroes only change on a pick or ban. Rebuilding the list on every tick
+  // reopens the native dropdown underneath the operator and makes it flicker
+  // mid-typing, so only touch the DOM when the contents actually differ.
+  if (signature === lastTakenSignature && list.children.length > 0) return;
+  lastTakenSignature = signature;
+
   list.textContent = '';
   heroes.forEach((hero) => {
     if (taken.has(hero)) return;
