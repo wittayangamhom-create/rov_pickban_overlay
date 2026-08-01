@@ -392,17 +392,6 @@ body {
 }
 
 /* Animations */
-@keyframes slideIn {
-    from {
-        transform: translateY(-20px);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
-
 @keyframes pulse {
     0%, 100% {
         box-shadow: 0 0 20px rgba(255, 204, 0, 0.4);
@@ -416,9 +405,11 @@ body {
     animation: pulse 1.5s infinite;
 }
 
-.filled {
-    animation: slideIn 0.5s ease-out;
-}
+/* `.filled` used to run slideIn here. It matched both .pick-slot and
+   .ban-slot, and because it stays applied after the entrance classes are
+   removed it restarted a second animation right after the new one - the
+   two visibly overlapped. The entrance animations at the end of this file
+   replace it. */
 /* ===== Active Slot Highlight (Draft Timer) ===== */
 @keyframes activePulse {
     0%   { box-shadow: 0 0 15px 3px var(--active-color); }
@@ -1049,6 +1040,13 @@ body {
 
 /* --- Entrance motion -------------------------------------- */
 
+/* The slot elements themselves are left alone on purpose. `.pick-slot.active`
+   and `.ban-slot.active` already run activePulse there, and a second
+   `animation` declaration on the same element replaces it rather than
+   layering - the two fought and cancelled each other. Everything below
+   animates a child or a pseudo-element instead, so the active pulse keeps
+   running underneath an entrance. */
+
 /* A pick should land, not blink into place. Slight overshoot then settle. */
 @keyframes heroPickIn {
     0%   { opacity: 0; transform: scale(1.14) translateY(18px); }
@@ -1056,39 +1054,44 @@ body {
     100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-@keyframes pickFlash {
-    0%   { box-shadow: 0 0 0 rgba(255, 255, 255, 0); }
-    35%  { box-shadow: 0 0 46px 6px rgba(255, 255, 255, 0.55); }
-    100% { box-shadow: 0 0 0 rgba(255, 255, 255, 0); }
-}
-
 .pick-slot.just-picked .hero-image {
     animation: heroPickIn 0.62s cubic-bezier(0.16, 0.84, 0.34, 1) both;
 }
 
-.pick-slot.just-picked {
-    animation: pickFlash 0.62s ease-out;
+/* Flash lives on ::after so it composites over the art without touching the
+   slot's box-shadow. Sits below .player-info (z-index 10) so the name plate
+   stays readable through it. */
+.pick-slot::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0) 70%);
 }
 
-/* A ban is a rejection - it should hit harder and settle faster. */
+@keyframes pickFlash {
+    0%   { opacity: 0; }
+    22%  { opacity: 0.6; }
+    100% { opacity: 0; }
+}
+
+.pick-slot.just-picked::after {
+    animation: pickFlash 0.55s ease-out;
+}
+
+/* A ban is a rejection - it should hit harder and settle faster. The
+   brightness punch is folded into the same keyframes so the icon carries
+   one animation and the slot carries none. */
 @keyframes banStampIn {
-    0%   { opacity: 0; transform: scale(1.75) rotate(-9deg); }
-    55%  { opacity: 1; transform: scale(0.93) rotate(3deg); }
-    100% { opacity: 1; transform: scale(1) rotate(0deg); }
-}
-
-@keyframes banSlotHit {
-    0%   { box-shadow: 0 0 0 rgba(255, 51, 51, 0); }
-    30%  { box-shadow: 0 0 34px 5px rgba(255, 51, 51, 0.85); }
-    100% { box-shadow: 0 0 15px rgba(255, 51, 51, 0.5); }
+    0%   { opacity: 0; transform: scale(1.75) rotate(-9deg); filter: brightness(2.8); }
+    55%  { opacity: 1; transform: scale(0.93) rotate(3deg);  filter: brightness(1.5); }
+    100% { opacity: 1; transform: scale(1) rotate(0deg);     filter: brightness(1); }
 }
 
 .ban-slot.just-banned .ban-icon {
-    animation: banStampIn 0.4s cubic-bezier(0.2, 1.5, 0.4, 1) both;
-}
-
-.ban-slot.just-banned {
-    animation: banSlotHit 0.5s ease-out;
+    animation: banStampIn 0.42s cubic-bezier(0.2, 1.5, 0.4, 1) both;
 }
 
 /* --- Timer urgency ---------------------------------------- */
@@ -1101,4 +1104,14 @@ body {
 
 .timer.urgent {
     animation: timerUrgent 0.5s ease-in-out infinite alternate;
+}
+
+/* The existing reduced-motion block predates these, so cover them too. */
+@media (prefers-reduced-motion: reduce) {
+    .pick-slot.just-picked .hero-image,
+    .pick-slot.just-picked::after,
+    .ban-slot.just-banned .ban-icon,
+    .timer.urgent {
+        animation: none;
+    }
 }
