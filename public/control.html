@@ -10,15 +10,20 @@
 body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100vh;}
 
 /* TOP BAR */
-.topbar{background:var(--s1);border-bottom:1px solid var(--border);padding:0 18px;height:50px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;}
+/* The bar wraps instead of forcing everything onto one row. Its children
+   used to carry fixed pixel widths inside containers that were allowed to
+   shrink, so below roughly 1400px they could not give way and simply drew
+   on top of each other. Everything here is flex-basis with a floor now. */
+.topbar{background:var(--s1);border-bottom:1px solid var(--border);padding:7px 18px;min-height:50px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;position:sticky;top:0;z-index:100;}
 .logo{font-family:var(--hf);font-size:18px;font-weight:900;letter-spacing:3px;color:var(--blue);white-space:nowrap;}
 .logo span{color:rgba(255,255,255,0.3);}
-.match-inputs{display:flex;align-items:center;gap:8px;flex:1;min-width:0;}
+.match-inputs{display:flex;align-items:center;gap:8px;flex:1 1 340px;min-width:0;}
 .match-inputs input{background:var(--s3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:5px 10px;font-family:var(--bf);font-size:13px;font-weight:600;transition:border-color 0.2s;}
 .match-inputs input:focus{outline:none;border-color:var(--blue);}
-.match-inputs input:nth-child(1){width:185px;}
-.match-inputs input:nth-child(2){width:265px;}
-.topbar-links{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.match-inputs input{min-width:0;}
+.match-inputs input:nth-child(1){flex:1 1 150px;}
+.match-inputs input:nth-child(2){flex:1.5 1 200px;}
+.topbar-links{margin-left:auto;display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
 .overlay-link-group{display:flex;gap:8px;align-items:center;}
 .overlay-url-item{display:flex;align-items:center;gap:3px;}
 .overlay-url-item .tlink:first-child{border-radius:6px 3px 3px 6px;}
@@ -26,10 +31,11 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 .copy-url-btn:hover{color:var(--green);border-color:var(--green);}
 .tlink{padding:5px 13px;border-radius:6px;font-family:var(--hf);font-size:12px;font-weight:800;letter-spacing:1px;cursor:pointer;border:1px solid var(--border2);background:var(--s3);color:var(--muted2);transition:all 0.2s;text-decoration:none;}
 .tlink:hover{color:var(--blue);border-color:var(--blue);}
-.preset-tools{display:flex;align-items:center;gap:6px;min-width:0;}
-.preset-tools input,.preset-tools select{height:29px;background:var(--s3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:4px 8px;font-family:var(--bf);font-size:12px;font-weight:600;min-width:110px;}
-.preset-tools input{width:120px;}
-.preset-tools select{width:130px;}
+.preset-tools{display:flex;align-items:center;gap:6px;flex:1 1 300px;min-width:0;}
+.preset-tools input,.preset-tools select{height:29px;background:var(--s3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:4px 8px;font-family:var(--bf);font-size:12px;font-weight:600;min-width:0;}
+.preset-tools input{flex:1 1 90px;}
+.preset-tools select{flex:1 1 100px;}
+.preset-tools .tlink{flex:0 0 auto;white-space:nowrap;}
 .preset-tools input:focus,.preset-tools select:focus{outline:none;border-color:var(--blue);}
 
 .design-link{border-color:rgba(16,185,129,0.45);color:var(--green);}
