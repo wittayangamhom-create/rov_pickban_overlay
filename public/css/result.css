@@ -478,7 +478,10 @@ body[data-size="1440"] {
 }
 
 body[data-size="1440"] .result-container {
-    transform: scale(1.33333333);
+    /* calc(4 / 3), not a typed-out 1.3333: any decimal is short by a
+       fraction and leaves a sliver of the frame uncovered at the right
+       and bottom edges. The fraction is exact. */
+    transform: scale(calc(4 / 3));
     transform-origin: top left;
 }
 
