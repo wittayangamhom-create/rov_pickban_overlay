@@ -1,0 +1,49 @@
+/* Shared broadcast motion.
+   @keyframes are global by name, so both the draft overlay and the result
+   screen pull from this one file. Previously the overlay owned them, which
+   meant the result screen either duplicated them or - as it did - simply
+   went without and drifted out of step visually.
+
+   Selector rules stay in each page's own stylesheet, because the two pages
+   use different class names for the same ideas (.pick-slot vs .pick-card).
+
+   Nothing here targets a whole slot on purpose. `animation` is a single
+   property, so a second declaration on an element replaces the first rather
+   than layering - that is what made the entrance animations fight the
+   existing activePulse. Attach these to children and pseudo-elements. */
+
+/* A pick should land, not blink into place. Overshoot, then settle. */
+@keyframes heroPickIn {
+    0%   { opacity: 0; transform: scale(1.14) translateY(18px); }
+    55%  { opacity: 1; }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Flash overlay. Drives opacity only, so it can sit on a pseudo-element
+   without touching the slot's own box-shadow. */
+@keyframes pickFlash {
+    0%   { opacity: 0; }
+    22%  { opacity: 0.6; }
+    100% { opacity: 0; }
+}
+
+/* A ban is a rejection - it hits harder and settles faster. The brightness
+   punch is folded in so the icon carries exactly one animation. */
+@keyframes banStampIn {
+    0%   { opacity: 0; transform: scale(1.75) rotate(-9deg); filter: brightness(2.8); }
+    55%  { opacity: 1; transform: scale(0.93) rotate(3deg);  filter: brightness(1.5); }
+    100% { opacity: 1; transform: scale(1) rotate(0deg);     filter: brightness(1); }
+}
+
+/* Under ten seconds the clock should read from across a room. */
+@keyframes timerUrgent {
+    from { color: #ff3b3b; text-shadow: 0 0 18px rgba(255, 59, 59, 0.9); }
+    to   { color: #fff;    text-shadow: 0 0 30px rgba(255, 59, 59, 1); }
+}
+
+/* Digits must not shift the layout as they change. Proportional figures
+   make a running clock visibly jitter; tabular ones hold their width. */
+.tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+}

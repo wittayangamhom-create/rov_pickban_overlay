@@ -143,7 +143,7 @@ body {
     align-items: center;
     justify-content: center;
     font-size: 22px;
-    font-weight: bold;
+    font-weight: 900;
     color: rgba(255,80,80,0.85);
     pointer-events: none;
 }
@@ -377,4 +377,81 @@ body {
     height: 4px;
     background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.65), rgba(248, 113, 113, 0.65), transparent);
     box-shadow: 0 0 16px rgba(255, 255, 255, 0.18);
+}
+
+/* ============================================================
+   BROADCAST POLISH
+   Mirrors the draft overlay so the two screens read as one package.
+   Shared @keyframes come from broadcast.css.
+   ============================================================ */
+
+/* --- Typography ------------------------------------------- */
+
+.team-name-text,
+.ban-label-badge,
+.pick-player-name {
+    font-family: 'Kanit', 'Segoe UI', Arial, sans-serif;
+}
+
+.team-name-text,
+.ban-label-badge {
+    font-weight: 900;
+}
+
+.pick-player-name {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+}
+
+/* --- Hero art treatment ----------------------------------- */
+
+/* Same lift as the draft overlay. Splash art was drawn for a game client,
+   not a broadcast frame, and goes flat once scaled down and darkened. */
+.pick-card .hero-art {
+    filter: saturate(1.18) contrast(1.06);
+}
+
+/* Unpicked cards sit back so filled ones carry the eye. */
+.pick-card:not(.filled) .hero-art {
+    filter: saturate(0.25) brightness(0.7);
+}
+
+.ban-icon-slot img {
+    filter: grayscale(90%) brightness(0.55) contrast(1.1);
+}
+
+/* --- Entrance motion -------------------------------------- */
+
+/* ::after already carries the readability gradient here, so the flash uses
+   ::before. The card itself keeps no animation of its own. */
+.pick-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0) 70%);
+}
+
+.pick-card.just-picked::before {
+    animation: pickFlash 0.55s ease-out;
+}
+
+.pick-card.just-picked .hero-art {
+    animation: heroPickIn 0.62s cubic-bezier(0.16, 0.84, 0.34, 1) both;
+}
+
+.ban-icon-slot.just-banned img {
+    animation: banStampIn 0.42s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pick-card.just-picked::before,
+    .pick-card.just-picked .hero-art,
+    .ban-icon-slot.just-banned img {
+        animation: none;
+    }
 }
