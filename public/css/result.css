@@ -441,11 +441,15 @@ body {
 }
 
 .pick-card.just-picked .hero-art {
-    animation: heroPickIn 0.62s cubic-bezier(0.16, 0.84, 0.34, 1) both;
+    animation: heroPickIn 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    will-change: transform, opacity;
+    backface-visibility: hidden;
 }
 
 .ban-icon-slot.just-banned img {
-    animation: banStampIn 0.42s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+    animation: banStampIn 0.34s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    will-change: transform, opacity;
+    backface-visibility: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {

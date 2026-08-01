@@ -1049,7 +1049,15 @@ body {
 
 /* A pick should land, not blink into place. Slight overshoot then settle. */
 .pick-slot.just-picked .hero-image {
-    animation: heroPickIn 0.62s cubic-bezier(0.16, 0.84, 0.34, 1) both;
+    animation: heroPickIn 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    /* Without its own layer the browser re-rasterises the background image
+       at every scale step, then re-rasterises sharply once the animation
+       ends - which looks like the art snapping into proportion at the end
+       rather than settling. Promoting it keeps one crisp raster that the
+       GPU simply transforms. Only while animating; the class is removed
+       afterwards, so the layer is not kept alive for the whole broadcast. */
+    will-change: transform, opacity;
+    backface-visibility: hidden;
 }
 
 /* Flash lives on ::after so it composites over the art without touching the
@@ -1073,7 +1081,9 @@ body {
    brightness punch is folded into the same keyframes so the icon carries
    one animation and the slot carries none. */
 .ban-slot.just-banned .ban-icon {
-    animation: banStampIn 0.42s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+    animation: banStampIn 0.34s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    will-change: transform, opacity;
+    backface-visibility: hidden;
 }
 
 /* --- Timer urgency ---------------------------------------- */

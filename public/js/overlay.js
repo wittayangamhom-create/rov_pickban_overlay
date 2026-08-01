@@ -171,6 +171,30 @@ function updateBans(team, bans) {
     });
 }
 
+// โหลดรูปให้เสร็จก่อน แล้วค่อยแสดงพร้อมอนิเมชันในเฟรมเดียวกัน
+function showHeroArtWhenReady(slot, heroImage, hero, cssUrl) {
+    // onload และ decode() อาจยิงทั้งคู่ ถ้าปล่อยให้เรียกซ้ำ
+    // อนิเมชันจะถูกรีสตาร์ทกลางทางและดูสะดุด
+    let revealed = false;
+    const reveal = () => {
+        if (revealed) return;
+        revealed = true;
+        // ถ้าระหว่างรอ มีการเปลี่ยนฮีโร่อีก ให้ทิ้งผลลัพธ์เก่าไป
+        if (slot.dataset.hero !== hero) return;
+        heroImage.style.backgroundImage = cssUrl;
+        playOnce(slot, 'just-picked');
+    };
+
+    const preload = new Image();
+    preload.onload = () => {
+        // decode() ให้ภาพพร้อมวาดจริงก่อนเฟรมแรกของอนิเมชัน
+        if (preload.decode) preload.decode().then(reveal).catch(reveal);
+        else reveal();
+    };
+    preload.onerror = reveal; // รูปหายก็ยังต้องเดินต่อ
+    preload.src = imageUrl('heroes', hero);
+}
+
 function updatePicks(team, picks) {
     picks.forEach((hero, index) => {
         const slot = document.querySelector(`.pick-slot[data-team="${team}"][data-index="${index}"]`);
@@ -180,11 +204,11 @@ function updatePicks(team, picks) {
                 slot.classList.add('filled');
                 const nextImage = `url("${imageUrl('heroes', hero)}")`;
                 if (slot.dataset.hero !== hero) {
-                    heroImage.style.backgroundImage = '';
-                    heroImage.offsetHeight;
                     slot.dataset.hero = hero;
-                    heroImage.style.backgroundImage = nextImage;
-                    playOnce(slot, 'just-picked');
+                    // รอให้รูปโหลดเสร็จก่อนค่อยเริ่มอนิเมชัน
+                    // ไม่งั้นกล่องเปล่าจะขยับก่อน แล้วรูปเด้งขึ้นมากลางทาง
+                    // ทำให้ดูสะดุด ถ้ารูปอยู่ใน cache แล้วจะเริ่มทันที
+                    showHeroArtWhenReady(slot, heroImage, hero, nextImage);
                     return;
                 }
                 heroImage.style.backgroundImage = nextImage;
