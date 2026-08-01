@@ -8,7 +8,7 @@ body {
     width: 2560px;
     height: 1440px;
     background: transparent;
-    font-family: 'Arial', sans-serif;
+    font-family: 'Kanit', 'Segoe UI', Arial, sans-serif;
     overflow: hidden;
 }
 
@@ -448,7 +448,7 @@ body {
 body {
     width: 1920px;
     height: 1080px;
-    font-family: "Segoe UI", Arial, sans-serif;
+    font-family: 'Kanit', "Segoe UI", Arial, sans-serif;
 }
 
 .overlay-container {
@@ -969,4 +969,136 @@ body {
 
 .team-center-name {
     max-width: 120px;
+}
+
+/* ============================================================
+   BROADCAST POLISH
+   Typography, entrance motion, and hero-art treatment.
+   Loaded last so it wins over the base rules above.
+   overlay-1440.css @imports this file, so 1440p inherits it all.
+   ============================================================ */
+
+/* --- Typography ------------------------------------------- */
+
+/* Kanit carries real weight at 600/900, which reads far better on a
+   stream than faux-bold Arial. Tight tracking is the broadcast look. */
+.ban-label,
+.tournament-name,
+.match-title,
+.team-name,
+.team-center-name,
+.player-name,
+#draftLabel {
+    font-family: 'Kanit', 'Segoe UI', Arial, sans-serif;
+    font-weight: 600;
+}
+
+.ban-label,
+.team-name,
+.team-center-name {
+    font-weight: 900;
+}
+
+.player-name {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.tournament-name,
+#draftLabel {
+    font-weight: 400;
+}
+
+/* Digits must not shift the layout as they change. Proportional figures
+   make a running clock visibly jitter; tabular ones hold their width. */
+.score-number,
+.timer,
+.position-indicator {
+    font-family: 'Kanit', 'Segoe UI', Arial, sans-serif;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+}
+
+/* --- Hero art treatment ----------------------------------- */
+
+/* Splash art was drawn for a game client, not a broadcast frame:
+   slightly flat once scaled down and darkened. */
+.pick-slot .hero-image {
+    filter: saturate(1.18) contrast(1.06);
+    transition: opacity 0.35s ease, filter 0.35s ease;
+}
+
+/* A longer, multi-stop fade blends the art into the name plate instead
+   of ending on the hard edge a single-stop gradient leaves behind. */
+.pick-slot .hero-image::before {
+    height: 46%;
+    background: linear-gradient(
+        to top,
+        rgba(0, 0, 0, 0.96) 0%,
+        rgba(0, 0, 0, 0.82) 26%,
+        rgba(0, 0, 0, 0.45) 58%,
+        rgba(0, 0, 0, 0) 100%
+    );
+}
+
+/* Empty slots sit back so filled ones carry the eye. */
+.pick-slot:not(.filled) .hero-image {
+    filter: saturate(0.25) brightness(0.7);
+}
+
+/* --- Entrance motion -------------------------------------- */
+
+/* A pick should land, not blink into place. Slight overshoot then settle. */
+@keyframes heroPickIn {
+    0%   { opacity: 0; transform: scale(1.14) translateY(18px); }
+    55%  { opacity: 1; }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes pickFlash {
+    0%   { box-shadow: 0 0 0 rgba(255, 255, 255, 0); }
+    35%  { box-shadow: 0 0 46px 6px rgba(255, 255, 255, 0.55); }
+    100% { box-shadow: 0 0 0 rgba(255, 255, 255, 0); }
+}
+
+.pick-slot.just-picked .hero-image {
+    animation: heroPickIn 0.62s cubic-bezier(0.16, 0.84, 0.34, 1) both;
+}
+
+.pick-slot.just-picked {
+    animation: pickFlash 0.62s ease-out;
+}
+
+/* A ban is a rejection - it should hit harder and settle faster. */
+@keyframes banStampIn {
+    0%   { opacity: 0; transform: scale(1.75) rotate(-9deg); }
+    55%  { opacity: 1; transform: scale(0.93) rotate(3deg); }
+    100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes banSlotHit {
+    0%   { box-shadow: 0 0 0 rgba(255, 51, 51, 0); }
+    30%  { box-shadow: 0 0 34px 5px rgba(255, 51, 51, 0.85); }
+    100% { box-shadow: 0 0 15px rgba(255, 51, 51, 0.5); }
+}
+
+.ban-slot.just-banned .ban-icon {
+    animation: banStampIn 0.4s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+
+.ban-slot.just-banned {
+    animation: banSlotHit 0.5s ease-out;
+}
+
+/* --- Timer urgency ---------------------------------------- */
+
+/* Under ten seconds the clock should be readable from across a room. */
+@keyframes timerUrgent {
+    from { color: #ff3b3b; text-shadow: 0 0 18px rgba(255, 59, 59, 0.9); }
+    to   { color: #fff;    text-shadow: 0 0 30px rgba(255, 59, 59, 1); }
+}
+
+.timer.urgent {
+    animation: timerUrgent 0.5s ease-in-out infinite alternate;
 }

@@ -8,7 +8,7 @@ body {
     width: 1920px;
     height: 1080px;
     background: transparent;
-    font-family: 'Arial Black', 'Arial', sans-serif;
+    font-family: 'Kanit', 'Segoe UI', Arial, sans-serif;
     overflow: hidden;
 }
 
@@ -272,7 +272,7 @@ body {
 
 /* ===== Result overlay polish ===== */
 body {
-    font-family: "Segoe UI", Arial, sans-serif;
+    font-family: 'Kanit', "Segoe UI", Arial, sans-serif;
 }
 
 .result-container {

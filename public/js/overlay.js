@@ -15,6 +15,19 @@ function imageUrl(folder, name) {
     return `images/${folder}/${encodeURIComponent(name)}.png`;
 }
 
+// "00:09" -> 9. รองรับกรณีส่งมาเป็นวินาทีล้วนด้วย
+function timerToSeconds(timer) {
+    if (!timer) return 0;
+    const parts = String(timer).split(':');
+    if (parts.length === 2) {
+        const minutes = Number(parts[0]);
+        const seconds = Number(parts[1]);
+        return Number.isFinite(minutes) && Number.isFinite(seconds) ? minutes * 60 + seconds : 0;
+    }
+    const asNumber = Number(timer);
+    return Number.isFinite(asNumber) ? asNumber : 0;
+}
+
 function updateOverlay(state) {
     // Update team names
     document.getElementById('blueTeamName').textContent = state.teamBlue.name;
@@ -34,8 +47,11 @@ function updateOverlay(state) {
     if (timerEl) {
         if (state.draftLabel === 'coming soon') {
             timerEl.textContent = '';
+            timerEl.classList.remove('urgent');
         } else {
             timerEl.textContent = state.timer || '';
+            const seconds = timerToSeconds(state.timer);
+            timerEl.classList.toggle('urgent', seconds > 0 && seconds <= 10);
         }
     }
     if (draftLabelEl) {
@@ -101,31 +117,57 @@ function updateActiveSlots(activeSlots) {
     });
 }
 
+// เล่นอนิเมชันครั้งเดียวตอนที่ค่าเปลี่ยนจริงๆ
+//
+// ห้ามพึ่ง animationend อย่างเดียว OBS จะหยุด browser source ตอนที่ scene
+// ไม่ได้ออกอากาศ ทำให้อนิเมชันค้างและ animationend ไม่ยิงเลย
+// ถ้าไม่มีตัวสำรอง class จะค้างอยู่ถาวรและไปเล่นผิดจังหวะตอน scene กลับมา
+const ANIM_CLEANUP_MS = 1200;
+
+function playOnce(element, className) {
+    clearTimeout(element._animTimer);
+    element.classList.remove(className);
+    void element.offsetWidth; // บังคับ reflow เพื่อให้เริ่มอนิเมชันใหม่ได้
+    element.classList.add(className);
+
+    const clear = () => {
+        clearTimeout(element._animTimer);
+        element.classList.remove(className);
+    };
+
+    element.addEventListener('animationend', clear, { once: true });
+    element._animTimer = setTimeout(clear, ANIM_CLEANUP_MS);
+}
+
 function updateBans(team, bans) {
     bans.forEach((hero, index) => {
         const slot = document.querySelector(`.ban-slot[data-team="${team}"][data-index="${index}"]`);
-        if (slot) {
-            // ลบ img เก่า (ถ้ามี)
-            const oldImg = slot.querySelector('.ban-icon');
-            if (oldImg) {
-                oldImg.remove();
-            }
-            
-            if (hero) {
-                slot.classList.add('filled');
-                // สร้าง img element ใหม่
-                const img = document.createElement('img');
-                img.className = 'ban-icon';
-                img.src = imageUrl('heroes-icons', hero);
-                img.onerror = function() {
-                    // ถ้าไม่มีไอคอน ลองใช้รูปเต็มแทน
-                    this.src = imageUrl('heroes', hero);
-                };
-                slot.appendChild(img);
-            } else {
-                slot.classList.remove('filled');
-            }
+        if (!slot) return;
+
+        // state ถูกส่งมาทุกวินาทีตอนจับเวลา ถ้าสร้าง img ใหม่ทุกครั้ง
+        // รูปจะถูกโหลดใหม่ตลอดและอนิเมชันจะเล่นซ้ำไม่หยุด
+        // จึงแตะ DOM เฉพาะตอนฮีโร่เปลี่ยนจริงเท่านั้น
+        if (slot.dataset.hero === (hero || '')) return;
+        slot.dataset.hero = hero || '';
+
+        const oldImg = slot.querySelector('.ban-icon');
+        if (oldImg) oldImg.remove();
+
+        if (!hero) {
+            slot.classList.remove('filled');
+            return;
         }
+
+        slot.classList.add('filled');
+        const img = document.createElement('img');
+        img.className = 'ban-icon';
+        img.src = imageUrl('heroes-icons', hero);
+        img.onerror = function () {
+            // ถ้าไม่มีไอคอน ใช้รูปเต็มแทน
+            this.src = imageUrl('heroes', hero);
+        };
+        slot.appendChild(img);
+        playOnce(slot, 'just-banned');
     });
 }
 
@@ -141,6 +183,9 @@ function updatePicks(team, picks) {
                     heroImage.style.backgroundImage = '';
                     heroImage.offsetHeight;
                     slot.dataset.hero = hero;
+                    heroImage.style.backgroundImage = nextImage;
+                    playOnce(slot, 'just-picked');
+                    return;
                 }
                 heroImage.style.backgroundImage = nextImage;
             } else {
