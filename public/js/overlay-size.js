@@ -25,15 +25,21 @@
     // --- ภาพพื้นหลังที่ผู้ใช้ออกแบบเอง ------------------------------
     // แต่ละหน้าบอกไว้ที่ <body data-skin-slots> ว่าใช้ slot ไหนกับ element ไหน
     // เช่น "overlayTop:.ban-section, overlayBottom:.pick-section"
+    // 1080p กับ 1440p ใช้คนละไฟล์ ชื่อ slot จริงคือ base + ขนาด
+    // เช่น overlayTop -> overlayTop1080 หรือ overlayTop1440
     const SKIN_FILES = {
-        overlayTop: 'overlay-top',
-        overlayBottom: 'overlay-bottom',
-        resultTop: 'result-top',
-        resultBottom: 'result-bottom'
+        overlayTop1080: 'overlay-top-1080',
+        overlayTop1440: 'overlay-top-1440',
+        overlayBottom1080: 'overlay-bottom-1080',
+        overlayBottom1440: 'overlay-bottom-1440',
+        resultTop1080: 'result-top-1080',
+        resultTop1440: 'result-top-1440',
+        resultBottom1080: 'result-bottom-1080',
+        resultBottom1440: 'result-bottom-1440'
     };
     const skinTargets = (body.dataset.skinSlots || '').split(',')
         .map((pair) => pair.split(':').map((s) => s.trim()))
-        .filter(([slot, sel]) => slot && sel && SKIN_FILES[slot]);
+        .filter(([base, sel]) => base && sel);
 
     // นามสกุลไฟล์ไม่ได้เก็บไว้ใน state จึงลองทีละแบบจนกว่าจะโหลดได้
     const EXTS = ['png', 'jpg', 'webp'];
@@ -63,12 +69,15 @@
         body.classList.toggle('skin-on', on);
         body.classList.toggle('panels-off', Boolean(skin) && skin.showPanels === false);
 
-        skinTargets.forEach(([slot, selector]) => {
+        const size = body.dataset.size === '1440' ? '1440' : '1080';
+
+        skinTargets.forEach(([base, selector]) => {
             const el = document.querySelector(selector);
             if (!el) return;
+            const slot = base + size;                       // เลือกไฟล์ตามขนาดที่ใช้อยู่
             const version = (skin && skin.slots && skin.slots[slot]) || 0;
 
-            if (!on || !version) {
+            if (!on || !version || !SKIN_FILES[slot]) {
                 el.style.backgroundImage = '';
                 el.classList.remove('has-skin');
                 return;
@@ -81,18 +90,28 @@
         });
     }
 
+    // เปลี่ยนขนาดแล้วต้องสลับไฟล์ภาพตามด้วย
+    window.reapplySkin = () => applySkin(window.__lastSkin);
+
     applySize(locked || '1080');
     if (locked) {
         // หน้าที่ล็อกขนาดไว้ ยังต้องรับภาพพื้นหลังตามปกติ
-        if (typeof socket !== 'undefined') socket.on('stateUpdate', (s) => applySkin(s && s.skin));
+        if (typeof socket !== 'undefined') {
+            socket.on('stateUpdate', (s) => {
+                window.__lastSkin = s && s.skin;
+                applySkin(window.__lastSkin);
+            });
+        }
         return;
     }
 
     // socket ถูกสร้างไว้แล้วในไฟล์หลักของแต่ละหน้า
+    // applySize ต้องมาก่อน applySkin เพราะการเลือกไฟล์ขึ้นกับขนาดที่เพิ่งตั้ง
     if (typeof socket !== 'undefined') {
         socket.on('stateUpdate', (state) => {
             applySize(state && state.overlaySize);
-            applySkin(state && state.skin);
+            window.__lastSkin = state && state.skin;
+            applySkin(window.__lastSkin);
         });
     }
 })();

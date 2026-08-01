@@ -72,14 +72,21 @@ const DRAFT_SEQUENCE = [
 // sanitizeState during module init, so anything it reaches must already exist.
 const OVERLAY_SIZES = ['1080', '1440'];
 
-// ภาพพื้นหลังที่ผู้ใช้ออกแบบเอง แยกเป็นส่วนบนและส่วนล่างของแต่ละหน้า
+// ภาพพื้นหลังที่ผู้ใช้ออกแบบเอง แยกเป็นส่วนบน/ส่วนล่าง และแยกตามขนาดจอ
 // overlay: บน = แถบ ban/score/timer, ล่าง = การ์ด pick
 // result:  บน = ฝั่งน้ำเงิน, ล่าง = ฝั่งแดง
+//
+// แยก 1080p กับ 1440p คนละไฟล์ เพราะขนาดที่วาดจริงไม่เท่ากัน
+// ถ้าใช้ไฟล์เดียวกัน ภาพ 1080p จะถูกขยายขึ้นไปใช้กับ 1440p แล้วเบลอ
 const SKIN_SLOTS = {
-  overlayTop: 'overlay-top',
-  overlayBottom: 'overlay-bottom',
-  resultTop: 'result-top',
-  resultBottom: 'result-bottom'
+  overlayTop1080: 'overlay-top-1080',
+  overlayTop1440: 'overlay-top-1440',
+  overlayBottom1080: 'overlay-bottom-1080',
+  overlayBottom1440: 'overlay-bottom-1440',
+  resultTop1080: 'result-top-1080',
+  resultTop1440: 'result-top-1440',
+  resultBottom1080: 'result-bottom-1080',
+  resultBottom1440: 'result-bottom-1440'
 };
 const SKIN_DIR = path.join(__dirname, 'public', 'images', 'skins');
 const SKIN_MAX_BYTES = 8 * 1024 * 1024;
@@ -112,13 +119,16 @@ const defaultState = {
     enabled: false,     // ใช้ภาพที่อัปโหลดเป็นพื้นหลังหรือไม่
     showPanels: true,   // ยังวาดกรอบ/พื้นหลังแบบเดิมของแอพอยู่หรือไม่
     // 0 = ยังไม่มีภาพ, ตัวเลขอื่น = เวอร์ชันไว้กัน cache
-    slots: { overlayTop: 0, overlayBottom: 0, resultTop: 0, resultBottom: 0 }
+    // เติมจาก SKIN_SLOTS ตอนโหลด จะได้ไม่ต้องมาไล่แก้สองที่
+    slots: {}
   },
   matchInfo: {
     title: 'BLUE VS RED',
     tournament: 'ROV Tournament'
   }
 };
+
+Object.keys(SKIN_SLOTS).forEach((key) => { defaultState.skin.slots[key] = 0; });
 
 let gameState = sanitizeState(loadJson(STATE_PATH, defaultState));
 let draftInterval = null;

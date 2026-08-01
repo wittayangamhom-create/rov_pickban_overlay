@@ -9,43 +9,36 @@ if (controlToken) localStorage.setItem('rovControlToken', controlToken);
 
 const socket = io({ auth: { token: controlToken }, query: controlToken ? { token: controlToken } : {} });
 
-// ขนาดจริงของแต่ละพื้นที่ วัดจาก CSS ที่ใช้อยู่
-// ภาพจะถูกยืดเต็มพื้นที่ (background-size: 100% 100%)
-// ถ้าอัตราส่วนไม่ตรง ภาพจะบิด จึงต้องบอกขนาดจริง ไม่ใช่ 16:9
+// ขนาดจริงของแต่ละพื้นที่ วัดจาก layout ที่ใช้อยู่จริง
+// ภาพถูกยืดเต็มพื้นที่ (background-size: 100% 100%) ไม่ได้ครอบตัด
+// ถ้าอัตราส่วนไม่ตรง ภาพจะบิด จึงต้องบอกขนาดเป็น px ตรงๆ
+//
+// แยก 1080p กับ 1440p คนละไฟล์ ขนาดที่วาดจริงไม่เท่ากัน
+// หน้า result ถึงจะ layout เหมือนกัน แต่ตอน 1440p ถูกขยาย 4/3
+// ภาพ 1080p ที่เอาไปใช้กับ 1440p จึงถูกขยายตามแล้วเบลอ
 //
 // ถ้าแก้ layout ใน overlay.css / overlay-1440.css / result.css
-// อย่าลืมแก้ตัวเลขตรงนี้ด้วย
+// อย่าลืมแก้ตัวเลขตรงนี้ และใน public/images/skins/README.md ด้วย
 const SKIN_SLOTS = [
-  {
-    key: 'overlayTop', group: 'Overlay', part: 'Top',
-    note: 'แถบบน: ban, ชื่อทีม, score, timer',
-    sizes: [['1080p', 1920, 166], ['1440p', 2560, 220]],
-    same: true
-  },
-  {
-    key: 'overlayBottom', group: 'Overlay', part: 'Bottom',
-    note: 'แถบล่าง: การ์ด pick ทั้ง 10 ช่อง',
-    sizes: [['1080p', 1864, 360], ['1440p', 2476, 520]],
-    same: false
-  },
-  {
-    key: 'resultTop', group: 'Result', part: 'Top',
-    note: 'ครึ่งบน: ทีมน้ำเงิน',
-    sizes: [['ทั้งสองขนาด', 1920, 540]],
-    same: true
-  },
-  {
-    key: 'resultBottom', group: 'Result', part: 'Bottom',
-    note: 'ครึ่งล่าง: ทีมแดง',
-    sizes: [['ทั้งสองขนาด', 1920, 540]],
-    same: true
-  }
+  { key: 'overlayTop1080', size: '1080', group: 'Overlay', part: 'Top', w: 1920, h: 166, note: 'แถบบน: ban, ชื่อทีม, score, timer' },
+  { key: 'overlayBottom1080', size: '1080', group: 'Overlay', part: 'Bottom', w: 1864, h: 360, note: 'แถบล่าง: การ์ด pick 10 ช่อง' },
+  { key: 'resultTop1080', size: '1080', group: 'Result', part: 'Top', w: 1920, h: 540, note: 'ครึ่งบน: ทีมน้ำเงิน' },
+  { key: 'resultBottom1080', size: '1080', group: 'Result', part: 'Bottom', w: 1920, h: 540, note: 'ครึ่งล่าง: ทีมแดง' },
+
+  { key: 'overlayTop1440', size: '1440', group: 'Overlay', part: 'Top', w: 2560, h: 220, note: 'แถบบน: ban, ชื่อทีม, score, timer' },
+  { key: 'overlayBottom1440', size: '1440', group: 'Overlay', part: 'Bottom', w: 2476, h: 520, note: 'แถบล่าง: การ์ด pick 10 ช่อง' },
+  { key: 'resultTop1440', size: '1440', group: 'Result', part: 'Top', w: 2560, h: 720, note: 'ครึ่งบน: ทีมน้ำเงิน' },
+  { key: 'resultBottom1440', size: '1440', group: 'Result', part: 'Bottom', w: 2560, h: 720, note: 'ครึ่งล่าง: ทีมแดง' }
 ];
 const SKIN_FILES = {
-  overlayTop: 'overlay-top',
-  overlayBottom: 'overlay-bottom',
-  resultTop: 'result-top',
-  resultBottom: 'result-bottom'
+  overlayTop1080: 'overlay-top-1080',
+  overlayTop1440: 'overlay-top-1440',
+  overlayBottom1080: 'overlay-bottom-1080',
+  overlayBottom1440: 'overlay-bottom-1440',
+  resultTop1080: 'result-top-1080',
+  resultTop1440: 'result-top-1440',
+  resultBottom1080: 'result-bottom-1080',
+  resultBottom1440: 'result-bottom-1440'
 };
 const EXTS = ['png', 'jpg', 'webp'];
 
@@ -64,14 +57,15 @@ function buildDesignGrid() {
   if (!grid) return;
   grid.textContent = '';
 
-  let lastGroup = null;
-  SKIN_SLOTS.forEach(({ key, group, part, note, sizes, same }) => {
-    if (group !== lastGroup) {
-      lastGroup = group;
-      const heading = document.createElement('div');
-      heading.className = 'dgroup-title';
-      heading.textContent = group === 'Overlay' ? 'หน้า Overlay (ตอน draft)' : 'หน้า Result (สรุปผล)';
-      grid.appendChild(heading);
+  let lastSize = null;
+  SKIN_SLOTS.forEach(({ key, size, group, part, note, w, h }) => {
+    if (size !== lastSize) {
+      lastSize = size;
+      const banner = document.createElement('div');
+      banner.className = 'dsize-banner';
+      banner.innerHTML = `<span class="dsize-chip">${size}p</span>` +
+        `<span>สำหรับ Browser Source ขนาด <b>${size === '1080' ? '1920 x 1080' : '2560 x 1440'}</b></span>`;
+      grid.appendChild(banner);
     }
 
     const card = document.createElement('div');
@@ -80,29 +74,21 @@ function buildDesignGrid() {
     const title = document.createElement('div');
     title.className = 'dslot-title';
     title.innerHTML = `${group} <b>${part}</b>`;
+    card.dataset.size = size;
 
     const noteEl = document.createElement('div');
     noteEl.className = 'dslot-note';
     noteEl.textContent = note;
 
-    // ขนาดที่ต้องทำ บอกเป็น px ตรงๆ พร้อมอัตราส่วน
+    // ขนาดที่ต้องทำ บอกเป็น px ตรงๆ พร้อมอัตราส่วนและชื่อไฟล์
     const sizeBox = document.createElement('div');
     sizeBox.className = 'dslot-size';
-    sizes.forEach(([label, w, h]) => {
-      const row = document.createElement('div');
-      row.className = 'dsize-row';
-      row.innerHTML =
-        `<span class="dsize-label">${label}</span>` +
-        `<span class="dsize-px"><b>W ${w}</b> &times; <b>H ${h}</b> px</span>` +
-        `<span class="dsize-ratio">${(w / h).toFixed(2)} : 1</span>`;
-      sizeBox.appendChild(row);
-    });
-    if (!same) {
-      const warn = document.createElement('div');
-      warn.className = 'dsize-warn';
-      warn.textContent = 'สองขนาดนี้สัดส่วนไม่เท่ากัน ถ้าใช้ไฟล์เดียวภาพจะยืดไม่เท่ากัน แนะนำให้ทำตามขนาดที่ใช้ออกอากาศจริง';
-      sizeBox.appendChild(warn);
-    }
+    sizeBox.innerHTML =
+      `<div class="dsize-row">` +
+      `<span class="dsize-px"><b>W ${w}</b> &times; <b>H ${h}</b> px</span>` +
+      `<span class="dsize-ratio">${(w / h).toFixed(2)} : 1</span>` +
+      `</div>` +
+      `<div class="dsize-file">${SKIN_FILES[key]}.png</div>`;
 
     const preview = document.createElement('div');
     preview.className = 'dslot-preview';
@@ -191,7 +177,7 @@ function renderSkin(skin) {
   if (enabled && document.activeElement !== enabled) enabled.checked = skin.enabled === true;
   if (panels && document.activeElement !== panels) panels.checked = skin.showPanels !== false;
 
-  SKIN_SLOTS.forEach(({ key }) => {
+  SKIN_SLOTS.forEach(({ key, w, h }) => {
     const preview = document.getElementById(`skinPreview_${key}`);
     if (!preview) return;
     const version = skin.slots?.[key] || 0;
