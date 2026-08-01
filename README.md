@@ -50,16 +50,30 @@ ROV-Overlay-Tool-Portable.exe
 
 ```text
 Control Panel:  http://127.0.0.1:3000/
-Overlay 1080p:  http://127.0.0.1:3000/overlay
-Overlay 1440p:  http://127.0.0.1:3000/overlay-1440
+Overlay:        http://127.0.0.1:3000/overlay
 Result:         http://127.0.0.1:3000/result
 ```
+
+## เลือกขนาดหน้าจอ
+
+เลือก `1080p` หรือ `1440p` ได้ที่ปุ่ม **SIZE** มุมขวาบนของ Control Panel
+เลือกครั้งเดียว ทั้งหน้า Overlay และ Result จะเปลี่ยนตามทันที ไม่ต้องแก้ URL
+
+| ขนาด | ตั้งค่า Browser Source ใน OBS |
+|---|---|
+| 1080p | 1920 x 1080 |
+| 1440p | 2560 x 1440 |
+
+> ตัวแอพเปลี่ยนขนาดหน้าเว็บให้เอง แต่ **ขนาดของ Browser Source ใน OBS ต้องตั้งเอง** ให้ตรงกัน
+
+URL เดิม `/overlay-1440` ยังใช้ได้อยู่ สำหรับคนที่ใส่ไว้ใน OBS แล้ว
+URL นั้นจะล็อกที่ 1440p เสมอ ไม่เปลี่ยนตามปุ่ม SIZE
 
 ในตัวแอพสามารถเปิดหน้า Overlay และ Result ได้จากเมนู `ROV Tool`
 
 ## ใช้กับ OBS
 
-เพิ่ม `Browser Source` ใน OBS แล้วใส่ URL ตามขนาดงาน
+เพิ่ม `Browser Source` ใน OBS ใช้ URL เดียวกันทั้งสองขนาด แล้วเลือกขนาดจากปุ่ม SIZE
 
 สำหรับ 1080p:
 
@@ -69,13 +83,15 @@ Width:  1920
 Height: 1080
 ```
 
-สำหรับ 1440p:
+สำหรับ 1440p ใช้ URL เดิม แต่ตั้งขนาด Browser Source เป็น:
 
 ```text
-URL:    http://127.0.0.1:3000/overlay-1440
+URL:    http://127.0.0.1:3000/overlay
 Width:  2560
 Height: 1440
 ```
+
+หน้า Result ก็เปลี่ยนตามปุ่ม SIZE เหมือนกัน
 
 อ่านรายละเอียดเพิ่มได้ที่:
 

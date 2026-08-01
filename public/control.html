@@ -32,6 +32,13 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 .preset-tools select{width:130px;}
 .preset-tools input:focus,.preset-tools select:focus{outline:none;border-color:var(--blue);}
 
+/* Size switch: one choice, applied to every overlay and result screen */
+.size-switch{display:flex;align-items:center;gap:4px;padding:3px 6px 3px 9px;background:var(--s3);border:1px solid var(--border2);border-radius:7px;}
+.size-switch-label{font-family:var(--hf);font-size:10px;font-weight:800;letter-spacing:1.5px;color:var(--muted);margin-right:2px;}
+.size-btn{padding:4px 11px;border-radius:5px;border:1px solid transparent;background:none;color:var(--muted2);font-family:var(--hf);font-size:12px;font-weight:800;letter-spacing:0.8px;cursor:pointer;transition:all 0.15s;}
+.size-btn:hover{color:var(--text);}
+.size-btn.active{background:var(--blue);border-color:var(--blue);color:#fff;}
+
 /* MAIN GRID */
 .main{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px;max-width:1600px;margin:0 auto;}
 
@@ -177,14 +184,15 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
     <button class="tlink" onclick="loadPreset()">LOAD</button>
   </div>
   <div class="topbar-links">
+    <div class="size-switch" role="group" aria-label="Overlay size">
+      <span class="size-switch-label">SIZE</span>
+      <button class="size-btn" type="button" id="sizeBtn1080" onclick="setOverlaySize('1080')" title="Set every overlay and result screen to 1920x1080">1080p</button>
+      <button class="size-btn" type="button" id="sizeBtn1440" onclick="setOverlaySize('1440')" title="Set every overlay and result screen to 2560x1440">1440p</button>
+    </div>
     <div class="overlay-link-group">
       <div class="overlay-url-item">
-        <a class="tlink" href="/overlay" target="_blank">OVERLAY 1080</a>
-        <button class="tlink copy-url-btn" type="button" onclick="copyOverlayUrl('/overlay')" title="Copy Overlay 1080 URL" aria-label="Copy Overlay 1080 URL">&#10697;</button>
-      </div>
-      <div class="overlay-url-item">
-        <a class="tlink" href="/overlay-1440" target="_blank">OVERLAY 1440</a>
-        <button class="tlink copy-url-btn" type="button" onclick="copyOverlayUrl('/overlay-1440')" title="Copy Overlay 1440 URL" aria-label="Copy Overlay 1440 URL">&#10697;</button>
+        <a class="tlink" href="/overlay" target="_blank">OVERLAY</a>
+        <button class="tlink copy-url-btn" type="button" onclick="copyOverlayUrl('/overlay')" title="Copy Overlay URL" aria-label="Copy Overlay URL">&#10697;</button>
       </div>
       <div class="overlay-url-item">
         <a class="tlink" href="/result" target="_blank">RESULT</a>

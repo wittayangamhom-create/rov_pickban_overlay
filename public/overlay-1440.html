@@ -6,9 +6,10 @@
     <title>ROV Draft Pick Overlay 2560x1440</title>
     <link rel="stylesheet" href="css/fonts.css">
     <link rel="stylesheet" href="css/broadcast.css">
-    <link rel="stylesheet" href="css/overlay-1440.css">
+    <link rel="stylesheet" href="css/overlay.css">
+    <link rel="stylesheet" href="css/overlay-1440.css" id="size1440">
 </head>
-<body>
+<body data-lock-size="1440">
     <div class="overlay-container">
         <div class="ban-section">
             <div class="ban-left">
@@ -88,5 +89,6 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="js/overlay.js"></script>
+    <script src="js/overlay-size.js"></script>
 </body>
 </html>

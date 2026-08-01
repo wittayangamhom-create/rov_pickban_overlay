@@ -68,6 +68,10 @@ const DRAFT_SEQUENCE = [
   { label: 'Waiting', seconds: 60, slots: [] }
 ];
 
+// Declared up here, not next to sanitizeOverlaySize: gameState is built by
+// sanitizeState during module init, so anything it reaches must already exist.
+const OVERLAY_SIZES = ['1080', '1440'];
+
 const defaultState = {
   teamBlue: {
     name: 'BLUE',
@@ -89,6 +93,8 @@ const defaultState = {
   draftLabel: '',
   draftActiveSlots: [],
   draftRunning: false,
+  // เลือกครั้งเดียว มีผลกับทุกหน้าจอ overlay และ result
+  overlaySize: '1080',
   matchInfo: {
     title: 'BLUE VS RED',
     tournament: 'ROV Tournament'
@@ -140,6 +146,10 @@ function sanitizeHero(value) {
   if (value === null || value === '') return null;
   if (typeof value !== 'string') return null;
   return heroSet.has(value) ? value : null;
+}
+
+function sanitizeOverlaySize(value) {
+  return OVERLAY_SIZES.includes(String(value)) ? String(value) : defaultState.overlaySize;
 }
 
 function sanitizeTimer(value) {
@@ -217,6 +227,7 @@ function sanitizeState(state) {
     draftLabel: phaseIndex >= DRAFT_SEQUENCE.length ? 'coming soon' : sanitizeText(source.draftLabel || phase?.label || '', 32),
     draftActiveSlots: Array.isArray(source.draftActiveSlots) ? source.draftActiveSlots.filter(isSlotId).slice(0, 2) : [],
     draftRunning: false,
+    overlaySize: sanitizeOverlaySize(source.overlaySize),
     matchInfo: {
       title: sanitizeText(source.matchInfo?.title, 80) || defaultState.matchInfo.title,
       tournament: sanitizeText(source.matchInfo?.tournament, 50) || defaultState.matchInfo.tournament
@@ -555,6 +566,13 @@ io.on('connection', (socket) => {
   controlEvent(socket, 'updateTimer', (timer) => {
     gameState.timer = sanitizeTimer(timer);
     draftSeconds = parseTimeToSeconds(gameState.timer);
+    emitState();
+  });
+
+  // เลือกขนาดครั้งเดียว ทุกหน้าที่เปิดอยู่จะสลับตามทันที
+  controlEvent(socket, 'updateOverlaySize', (data) => {
+    const size = typeof data === 'string' ? data : data?.size;
+    gameState.overlaySize = sanitizeOverlaySize(size);
     emitState();
   });
 

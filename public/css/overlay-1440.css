@@ -1,5 +1,5 @@
-@import url("overlay.css");
-
+/* No @import: overlay.html links overlay.css and this file separately so the
+   1440 overrides can be toggled at runtime by the shared size setting. */
 body {
     width: 2560px;
     height: 1440px;

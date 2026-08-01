@@ -462,3 +462,22 @@ body {
         animation: none;
     }
 }
+
+/* ============================================================
+   SIZE
+   1920x1080 and 2560x1440 are both 16:9, so 2560/1920 and
+   1440/1080 are the same number - 4/3 exactly. The layout is
+   authored once at 1080p and scaled, which is pixel-exact rather
+   than an approximation, and means there is no second set of
+   sizes to keep in step.
+   ============================================================ */
+
+body[data-size="1440"] {
+    width: 2560px;
+    height: 1440px;
+}
+
+body[data-size="1440"] .result-container {
+    transform: scale(1.33333333);
+    transform-origin: top left;
+}

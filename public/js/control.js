@@ -394,6 +394,7 @@ function loadState(state) {
 
   const td = document.getElementById('timerDisplay');
   if (td && state.draftLabel !== 'coming soon') td.textContent = state.timer || '--';
+  renderOverlaySize(state.overlaySize);
 }
 
 function setVal(id, val) {
@@ -478,6 +479,17 @@ function updateTeam(team) {
     if (value !== undefined) socket.emit('updatePlayerName', { team, index: i, name: value });
   }
   showToast(`${color === 'blue' ? 'Blue' : 'Red'} team saved`, 'blue');
+}
+
+function setOverlaySize(size) {
+  socket.emit('updateOverlaySize', { size });
+  showToast(`Overlay size set to ${size}p`, 'blue');
+}
+
+function renderOverlaySize(size) {
+  const active = size === '1440' ? '1440' : '1080';
+  document.getElementById('sizeBtn1080')?.classList.toggle('active', active === '1080');
+  document.getElementById('sizeBtn1440')?.classList.toggle('active', active === '1440');
 }
 
 function updateMatchInfo() {
