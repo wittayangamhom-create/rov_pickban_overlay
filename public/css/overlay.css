@@ -97,6 +97,8 @@ body {
     object-fit: cover;
     filter: grayscale(80%) brightness(0.5);
     z-index: 1;
+    transform: translateZ(0);
+    backface-visibility: hidden;
 }
 
 /* Center Match Info */
@@ -1018,6 +1020,15 @@ body {
 .pick-slot .hero-image {
     filter: saturate(1.18) contrast(1.06);
     transition: opacity 0.35s ease, filter 0.35s ease;
+    /* Promoted permanently, not just while animating.
+       The entrance ends on transform: scale(1) and then the class is removed,
+       which drops the element back to transform: none and tears down its
+       layer. Same geometry, but the browser rasterises it afresh - and that
+       re-raster is the snap seen AFTER the animation finishes. Holding a
+       constant transform means the animation never creates or destroys a
+       layer, so there is no boundary to pop at. */
+    transform: translateZ(0);
+    backface-visibility: hidden;
 }
 
 /* A longer, multi-stop fade blends the art into the name plate instead
@@ -1047,17 +1058,11 @@ body {
    animates a child or a pseudo-element instead, so the active pulse keeps
    running underneath an entrance. */
 
-/* A pick should land, not blink into place. Slight overshoot then settle. */
+/* No will-change here on purpose. Adding it only while animating meant the
+   layer was built at the start and destroyed at the end, and that teardown
+   was itself visible. The element is promoted permanently above instead. */
 .pick-slot.just-picked .hero-image {
     animation: heroPickIn 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both;
-    /* Without its own layer the browser re-rasterises the background image
-       at every scale step, then re-rasterises sharply once the animation
-       ends - which looks like the art snapping into proportion at the end
-       rather than settling. Promoting it keeps one crisp raster that the
-       GPU simply transforms. Only while animating; the class is removed
-       afterwards, so the layer is not kept alive for the whole broadcast. */
-    will-change: transform, opacity;
-    backface-visibility: hidden;
 }
 
 /* Flash lives on ::after so it composites over the art without touching the
@@ -1082,8 +1087,6 @@ body {
    one animation and the slot carries none. */
 .ban-slot.just-banned .ban-icon {
     animation: banStampIn 0.34s cubic-bezier(0.22, 0.61, 0.36, 1) both;
-    will-change: transform, opacity;
-    backface-visibility: hidden;
 }
 
 /* --- Timer urgency ---------------------------------------- */

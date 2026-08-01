@@ -411,6 +411,11 @@ body {
    not a broadcast frame, and goes flat once scaled down and darkened. */
 .pick-card .hero-art {
     filter: saturate(1.18) contrast(1.06);
+    /* Permanently promoted: see overlay.css. Building the layer only while
+       animating means it is destroyed at the end, and that teardown re-rasters
+       the art - the snap seen AFTER the animation finishes. */
+    transform: translateZ(0);
+    backface-visibility: hidden;
 }
 
 /* Unpicked cards sit back so filled ones carry the eye. */
@@ -420,6 +425,8 @@ body {
 
 .ban-icon-slot img {
     filter: grayscale(90%) brightness(0.55) contrast(1.1);
+    transform: translateZ(0);
+    backface-visibility: hidden;
 }
 
 /* --- Entrance motion -------------------------------------- */
@@ -442,14 +449,10 @@ body {
 
 .pick-card.just-picked .hero-art {
     animation: heroPickIn 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both;
-    will-change: transform, opacity;
-    backface-visibility: hidden;
 }
 
 .ban-icon-slot.just-banned img {
     animation: banStampIn 0.34s cubic-bezier(0.22, 0.61, 0.36, 1) both;
-    will-change: transform, opacity;
-    backface-visibility: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {
