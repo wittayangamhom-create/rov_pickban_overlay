@@ -37,6 +37,13 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 .dslot-title{font-family:var(--hf);font-size:12px;font-weight:800;letter-spacing:1.2px;color:var(--muted2);text-transform:uppercase;}
 .dslot-title b{color:var(--text);}
 .dslot-note{font-size:11px;color:var(--muted);}
+.dslot-size{background:var(--s3);border:1px solid var(--border2);border-radius:7px;padding:8px 10px;display:flex;flex-direction:column;gap:5px;}
+.dsize-row{display:flex;align-items:baseline;gap:8px;font-size:12px;}
+.dsize-label{font-family:var(--hf);font-size:10px;font-weight:800;letter-spacing:1px;color:var(--muted);min-width:74px;text-transform:uppercase;}
+.dsize-px{color:var(--text);font-family:var(--bf);}
+.dsize-px b{color:var(--green);font-weight:700;}
+.dsize-ratio{margin-left:auto;font-size:11px;color:var(--muted);}
+.dsize-warn{margin-top:3px;padding-top:6px;border-top:1px solid var(--border);font-size:11px;line-height:1.6;color:var(--gold);}
 .dslot-preview{aspect-ratio:16/5;border-radius:7px;border:1px dashed var(--border2);background:var(--s3) center/contain no-repeat;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);letter-spacing:1px;overflow:hidden;text-align:center;padding:8px;}
 .dslot-preview.filled{border-style:solid;border-color:var(--green);}
 .dslot-actions{display:flex;gap:7px;}
@@ -85,9 +92,14 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
     </div>
     <div class="panel-body guide">
       <ul>
-        <li>ออกแบบที่อัตราส่วน <b>16:9</b> เช่น <code>1920 x 1080</code> ระบบจะย่อขยายให้พอดีทั้ง 1080p และ 1440p ไม่ต้องทำสองไฟล์</li>
+        <li><b>ทำภาพตามขนาดที่เขียนไว้ในแต่ละช่องด้านบน</b> ภาพจะถูกยืดเต็มพื้นที่พอดี ไม่ได้ครอบตัด
+            ถ้าสัดส่วนไม่ตรงกับที่ระบุ ภาพจะบิด</li>
+        <li>แต่ละพื้นที่เป็นแถบยาว <b>ไม่ใช่ 16:9</b> เช่นแถบบนของ overlay กว้างกว่าสูงประมาณ 11 เท่า</li>
         <li>บันทึกเป็น <code>PNG</code> แบบมีพื้นหลังโปร่งใส ตรงไหนที่โปร่งใสจะเห็นรูปฮีโร่และฉากหลังทะลุขึ้นมา</li>
         <li>ขนาดไฟล์ไม่เกิน <b>8 MB</b> รองรับ <code>PNG</code> <code>JPG</code> <code>WEBP</code></li>
+        <li>หน้า <b>Result</b> ใช้ไฟล์เดียวได้ทั้ง 1080p และ 1440p เพราะระบบย่อขยายทั้งหน้าเท่ากันหมด</li>
+        <li>หน้า <b>Overlay</b> แถบบนใช้ไฟล์เดียวได้ (สัดส่วนต่างกันแค่ 0.6%)
+            แต่แถบล่างสัดส่วนต่างกันราว 9% ถ้าซีเรียสเรื่องความเป๊ะ ให้ทำแยกตามขนาดที่ใช้จริง</li>
         <li>ติ๊ก <b>USE MY DESIGN</b> เพื่อเปิดใช้ภาพที่อัปโหลด</li>
         <li>เอาติ๊ก <b>SHOW BUILT-IN PANELS</b> ออก ถ้าอยากให้เหลือแต่ภาพของคุณ ไม่มีกรอบและพื้นหลังเดิมของแอพมาทับ</li>
         <li>เปิดหน้า OVERLAY หรือ RESULT ไว้อีกแท็บ จะเห็นผลเปลี่ยนทันทีตอนกดอัปโหลด</li>

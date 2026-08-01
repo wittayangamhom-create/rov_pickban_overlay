@@ -9,11 +9,37 @@ if (controlToken) localStorage.setItem('rovControlToken', controlToken);
 
 const socket = io({ auth: { token: controlToken }, query: controlToken ? { token: controlToken } : {} });
 
+// ขนาดจริงของแต่ละพื้นที่ วัดจาก CSS ที่ใช้อยู่
+// ภาพจะถูกยืดเต็มพื้นที่ (background-size: 100% 100%)
+// ถ้าอัตราส่วนไม่ตรง ภาพจะบิด จึงต้องบอกขนาดจริง ไม่ใช่ 16:9
+//
+// ถ้าแก้ layout ใน overlay.css / overlay-1440.css / result.css
+// อย่าลืมแก้ตัวเลขตรงนี้ด้วย
 const SKIN_SLOTS = [
-  { key: 'overlayTop', group: 'Overlay', part: 'Top', note: 'แถบบน: ban, ชื่อทีม, score, timer' },
-  { key: 'overlayBottom', group: 'Overlay', part: 'Bottom', note: 'แถบล่าง: การ์ด pick ทั้ง 10 ช่อง' },
-  { key: 'resultTop', group: 'Result', part: 'Top', note: 'ครึ่งบน: ทีมน้ำเงิน' },
-  { key: 'resultBottom', group: 'Result', part: 'Bottom', note: 'ครึ่งล่าง: ทีมแดง' }
+  {
+    key: 'overlayTop', group: 'Overlay', part: 'Top',
+    note: 'แถบบน: ban, ชื่อทีม, score, timer',
+    sizes: [['1080p', 1920, 166], ['1440p', 2560, 220]],
+    same: true
+  },
+  {
+    key: 'overlayBottom', group: 'Overlay', part: 'Bottom',
+    note: 'แถบล่าง: การ์ด pick ทั้ง 10 ช่อง',
+    sizes: [['1080p', 1864, 360], ['1440p', 2476, 520]],
+    same: false
+  },
+  {
+    key: 'resultTop', group: 'Result', part: 'Top',
+    note: 'ครึ่งบน: ทีมน้ำเงิน',
+    sizes: [['ทั้งสองขนาด', 1920, 540]],
+    same: true
+  },
+  {
+    key: 'resultBottom', group: 'Result', part: 'Bottom',
+    note: 'ครึ่งล่าง: ทีมแดง',
+    sizes: [['ทั้งสองขนาด', 1920, 540]],
+    same: true
+  }
 ];
 const SKIN_FILES = {
   overlayTop: 'overlay-top',
@@ -39,7 +65,7 @@ function buildDesignGrid() {
   grid.textContent = '';
 
   let lastGroup = null;
-  SKIN_SLOTS.forEach(({ key, group, part, note }) => {
+  SKIN_SLOTS.forEach(({ key, group, part, note, sizes, same }) => {
     if (group !== lastGroup) {
       lastGroup = group;
       const heading = document.createElement('div');
@@ -58,6 +84,25 @@ function buildDesignGrid() {
     const noteEl = document.createElement('div');
     noteEl.className = 'dslot-note';
     noteEl.textContent = note;
+
+    // ขนาดที่ต้องทำ บอกเป็น px ตรงๆ พร้อมอัตราส่วน
+    const sizeBox = document.createElement('div');
+    sizeBox.className = 'dslot-size';
+    sizes.forEach(([label, w, h]) => {
+      const row = document.createElement('div');
+      row.className = 'dsize-row';
+      row.innerHTML =
+        `<span class="dsize-label">${label}</span>` +
+        `<span class="dsize-px"><b>W ${w}</b> &times; <b>H ${h}</b> px</span>` +
+        `<span class="dsize-ratio">${(w / h).toFixed(2)} : 1</span>`;
+      sizeBox.appendChild(row);
+    });
+    if (!same) {
+      const warn = document.createElement('div');
+      warn.className = 'dsize-warn';
+      warn.textContent = 'สองขนาดนี้สัดส่วนไม่เท่ากัน ถ้าใช้ไฟล์เดียวภาพจะยืดไม่เท่ากัน แนะนำให้ทำตามขนาดที่ใช้ออกอากาศจริง';
+      sizeBox.appendChild(warn);
+    }
 
     const preview = document.createElement('div');
     preview.className = 'dslot-preview';
@@ -90,7 +135,7 @@ function buildDesignGrid() {
     actions.className = 'dslot-actions';
     actions.append(upload, clear);
 
-    card.append(title, noteEl, preview, actions, file);
+    card.append(title, noteEl, sizeBox, preview, actions, file);
     grid.appendChild(card);
   });
 }
