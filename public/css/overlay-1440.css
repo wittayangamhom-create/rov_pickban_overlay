@@ -107,6 +107,9 @@ body {
     bottom: 28px;
     height: 520px;
     padding: 28px;
+    --side-inset: 0px;
+    padding-left: var(--side-inset);
+    padding-right: var(--side-inset);
     border-radius: 0;
     background:
         linear-gradient(180deg, rgba(226, 232, 240, 0.92) 0, rgba(148, 163, 184, 0.42) 60px, rgba(15, 23, 42, 0.92) 100%),

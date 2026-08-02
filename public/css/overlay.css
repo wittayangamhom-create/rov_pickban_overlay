@@ -1040,3 +1040,16 @@ body.panels-off .team-center-card {
     right: 0;
     border-radius: 0;
 }
+
+/* Card groups sit hard against the outer edges so the middle opens up.
+   The banner uses justify-content: space-between, so the centre gap is
+   whatever is left over - pulling the groups outward widens it, and any
+   side padding would eat into it instead.
+
+   --side-inset is the one knob: raise it to bring the cards in from the
+   edges, which narrows the middle by twice that amount. */
+.pick-section {
+    --side-inset: 0px;
+    padding-left: var(--side-inset);
+    padding-right: var(--side-inset);
+}
