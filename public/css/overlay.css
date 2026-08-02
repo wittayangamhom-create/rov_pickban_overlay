@@ -1236,3 +1236,17 @@ body[data-size="1440"] .overlay-container {
     transform: scale(calc(4 / 3));
     transform-origin: top left;
 }
+
+/* Team name plates either side of the score are hidden, not deleted.
+   The elements stay in the DOM and overlay.js keeps writing team names
+   into them on every state update, so the feature is intact and ready
+   for a future overlay - flipping this back to flex is all it needs.
+
+   Player names under each card are untouched; only the centre plates go. */
+.team-logo-score {
+    /* !important is required, not preferred: an earlier rule declares
+       display: flex !important, and an important declaration beats a later
+       normal one no matter the order. There are 33 !important declarations
+       in this file, left over from earlier layout passes. */
+    display: none !important;
+}
