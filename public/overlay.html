@@ -9,10 +9,10 @@
     <link rel="stylesheet" href="css/overlay.css">
     <link rel="stylesheet" href="css/overlay-1440.css" id="size1440" disabled>
 </head>
-<body data-skin-slots="overlayTop:.ban-section, overlayBottom:.pick-section">
+<body data-skin-slots="overlayBottom:.pick-section">
     <div class="overlay-container">
-        <!-- Top Section: Ban Phase -->
-        <div class="ban-section">
+        <!-- Bottom Section: Pick Phase -->
+        <div class="pick-section">
             <div class="ban-left">
                 <div class="ban-label">BAN</div>
                 <div class="ban-heroes" id="blueBans">
@@ -22,8 +22,15 @@
                     <div class="ban-slot" data-team="teamBlue" data-index="3"></div>
                 </div>
             </div>
-            
-            <!-- Center Match Info -->
+            <div class="ban-right">
+                <div class="ban-label">BAN</div>
+                <div class="ban-heroes" id="redBans">
+                    <div class="ban-slot" data-team="teamRed" data-index="0"></div>
+                    <div class="ban-slot" data-team="teamRed" data-index="1"></div>
+                    <div class="ban-slot" data-team="teamRed" data-index="2"></div>
+                    <div class="ban-slot" data-team="teamRed" data-index="3"></div>
+                </div>
+            </div>
             <div class="match-center">
                 <div class="tournament-name" id="tournamentName">ROV Premier League</div>
                 <div class="match-score-container">
@@ -49,20 +56,6 @@
                 </div>
                 <div class="match-title" id="matchTitle">FW VS EA : GAME 3 [BO7]</div>
             </div>
-            
-            <div class="ban-right">
-                <div class="ban-label">BAN</div>
-                <div class="ban-heroes" id="redBans">
-                    <div class="ban-slot" data-team="teamRed" data-index="0"></div>
-                    <div class="ban-slot" data-team="teamRed" data-index="1"></div>
-                    <div class="ban-slot" data-team="teamRed" data-index="2"></div>
-                    <div class="ban-slot" data-team="teamRed" data-index="3"></div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Bottom Section: Pick Phase -->
-        <div class="pick-section">
             <!-- Team Center Info (ตรงกลาง) -->
             <div class="team-center-info">
                 <div class="team-center-card blue">

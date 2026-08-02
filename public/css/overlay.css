@@ -1053,3 +1053,186 @@ body.panels-off .team-center-card {
     padding-left: var(--side-inset);
     padding-right: var(--side-inset);
 }
+
+/* ============================================================
+   UNIFIED BOTTOM BANNER  (1080p)
+   Bans, picks, score and title now live in one band, matching the
+   reference layout. The separate top bar is gone - .ban-section no
+   longer exists in the markup, so its old rules are inert.
+
+   Children are absolutely placed inside the banner rather than
+   flexed, so each group can be positioned independently.
+   ============================================================ */
+
+.pick-section {
+    display: block;
+    bottom: 0;
+    height: 430px;
+    padding: 0;
+    --side-inset: 14px;
+}
+
+/* --- ban rows, tucked into the top corners --- */
+.ban-left,
+.ban-right {
+    position: absolute;
+    top: 10px;
+    width: auto;
+    gap: 10px;
+    align-items: center;
+    z-index: 6;
+}
+
+.ban-left  { left: var(--side-inset); }
+.ban-right { right: var(--side-inset); flex-direction: row-reverse; }
+
+/* Plain white word, as in the reference - no box, no red fill */
+.ban-label {
+    font-size: 40px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: #fff;
+    background: none;
+    border: none;
+    padding: 0 6px;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+}
+
+.ban-heroes { gap: 6px; }
+
+.ban-slot {
+    width: 58px;
+    height: 58px;
+    border-width: 2px;
+    border-radius: 4px;
+}
+
+.ban-slot::after { font-size: 34px; }
+
+/* --- pick rows, along the bottom --- */
+.team-picks {
+    position: absolute;
+    bottom: 8px;
+}
+
+.blue-team { left: var(--side-inset); }
+.red-team  { right: var(--side-inset); }
+
+.pick-slot { height: 320px; }
+
+/* Team names already appear in the centre block, so the duplicate
+   pair that used to sit here is redundant. */
+.team-center-info { display: none; }
+
+/* --- centre column --- */
+.match-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 8px;
+    width: 380px;
+    text-align: center;
+    z-index: 6;
+}
+
+.tournament-name {
+    font-size: 15px;
+    letter-spacing: 4px;
+    margin-bottom: 8px;
+    opacity: 0.85;
+}
+
+.match-score-container {
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.team-logo-score {
+    padding: 6px 12px;
+    min-width: 96px;
+    justify-content: center;
+}
+
+.team-name { font-size: 20px; }
+
+/* Boxed digits with VS between, noticeably smaller than before */
+.score-display {
+    gap: 8px;
+    padding: 4px 10px;
+    background: none;
+    border: none;
+}
+
+.score-number {
+    font-size: 30px;
+    min-width: 44px;
+    padding: 2px 0;
+    background: rgba(2, 6, 23, 0.85);
+    border-radius: 4px;
+}
+
+.blue-team-score, .score-number:first-of-type { border: 2px solid rgba(56, 189, 248, 0.9); }
+.score-number:last-of-type { border: 2px solid rgba(248, 113, 113, 0.9); }
+
+.score-separator { font-size: 15px; letter-spacing: 1px; }
+
+/* Timer is the loud element here, not the score */
+.timer-display { margin: 2px 0 4px; }
+
+.timer {
+    font-size: 42px;
+    color: #fff;
+    background: none;
+    border: none;
+    padding: 0;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85);
+}
+
+.match-title {
+    position: static;
+    font-size: 19px;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+    padding: 4px 10px;
+    background: rgba(2, 6, 23, 0.75);
+    border-radius: 4px;
+}
+
+/* The ban rows kept padding-top: 48px and a fixed height from the old
+   top-bar layout, which made them ~108px tall and pushed them down into
+   the pick cards. Reset to their natural height. */
+.ban-left,
+.ban-right {
+    padding: 0;
+    height: auto;
+}
+
+/* Centre was 380px against a 372px gap, clipping both pick rows by 4px. */
+.match-center { width: 356px; }
+
+/* ============================================================
+   1440p BY SCALE
+   The overlay used to carry a second hand-tuned stylesheet for
+   1440p. After the banner was restructured its declarations
+   stopped reaching the elements - the rules were in the loaded
+   sheet and the elements matched them, but the values never
+   applied, even with !important. I could not find the cause.
+
+   Rather than ship a layout I cannot control, 1440p is now the
+   1080p layout scaled by 4/3, which is what the result screen
+   already does. Both are 16:9 so the factor is exact, and it
+   guarantees the two sizes cannot drift apart. overlay-1440.css
+   is left in place but is now switched off by overlay-size.js.
+   ============================================================ */
+
+body[data-size="1440"] {
+    width: 2560px;
+    height: 1440px;
+}
+
+body[data-size="1440"] .overlay-container {
+    width: 1920px;
+    height: 1080px;
+    transform: scale(calc(4 / 3));
+    transform-origin: top left;
+}

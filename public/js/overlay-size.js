@@ -17,7 +17,10 @@
         // ถ้าเช็คแค่ dataset แล้วรีเทิร์นทิ้ง เวลาที่ dataset กับ stylesheet
         // ไม่ตรงกัน (เช่นถูกสลับจากที่อื่น) จะกลับมาตรงกันไม่ได้เลย
         if (body.dataset.size !== next) body.dataset.size = next;
-        if (sheet1440 && sheet1440.disabled !== wantDisabled) sheet1440.disabled = wantDisabled;
+
+        // แผ่น 1440 ถูกปิดถาวร ตอนนี้ 1440p ใช้วิธีขยาย layout 1080p ด้วย 4/3
+        // แทนการมีชุดขนาดแยกอีกชุด รายละเอียดอยู่ในคอมเมนต์ของ overlay.css
+        if (sheet1440 && !sheet1440.disabled) sheet1440.disabled = true;
     }
 
     window.applyOverlaySize = applySize;
