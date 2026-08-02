@@ -21,12 +21,12 @@ const socket = io({ auth: { token: controlToken }, query: controlToken ? { token
 // อย่าลืมแก้ตัวเลขตรงนี้ และใน public/images/skins/README.md ด้วย
 const SKIN_SLOTS = [
   { key: 'overlayTop1080', size: '1080', group: 'Overlay', part: 'Top', w: 1920, h: 166, note: 'แถบบน: ban, ชื่อทีม, score, timer' },
-  { key: 'overlayBottom1080', size: '1080', group: 'Overlay', part: 'Bottom', w: 1864, h: 360, note: 'แถบล่าง: การ์ด pick 10 ช่อง' },
+  { key: 'overlayBottom1080', size: '1080', group: 'Overlay', part: 'Bottom', w: 1920, h: 360, note: 'แถบล่าง: การ์ด pick 10 ช่อง' },
   { key: 'resultTop1080', size: '1080', group: 'Result', part: 'Top', w: 1920, h: 540, note: 'ครึ่งบน: ทีมน้ำเงิน' },
   { key: 'resultBottom1080', size: '1080', group: 'Result', part: 'Bottom', w: 1920, h: 540, note: 'ครึ่งล่าง: ทีมแดง' },
 
   { key: 'overlayTop1440', size: '1440', group: 'Overlay', part: 'Top', w: 2560, h: 220, note: 'แถบบน: ban, ชื่อทีม, score, timer' },
-  { key: 'overlayBottom1440', size: '1440', group: 'Overlay', part: 'Bottom', w: 2476, h: 520, note: 'แถบล่าง: การ์ด pick 10 ช่อง' },
+  { key: 'overlayBottom1440', size: '1440', group: 'Overlay', part: 'Bottom', w: 2560, h: 520, note: 'แถบล่าง: การ์ด pick 10 ช่อง' },
   { key: 'resultTop1440', size: '1440', group: 'Result', part: 'Top', w: 2560, h: 720, note: 'ครึ่งบน: ทีมน้ำเงิน' },
   { key: 'resultBottom1440', size: '1440', group: 'Result', part: 'Bottom', w: 2560, h: 720, note: 'ครึ่งล่าง: ทีมแดง' }
 ];

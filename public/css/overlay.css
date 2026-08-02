@@ -1029,3 +1029,14 @@ body.panels-off .team-center-card {
     border-color: rgba(252, 165, 165, 0.85);
     box-shadow: 0 0 24px rgba(248, 113, 113, 0.4);
 }
+
+/* Bottom banner spans the full canvas width rather than sitting inset.
+   Last in the file so it wins over the earlier .pick-section rules.
+   Note overlay-1440.css loads after this file, so its own inset values
+   are changed there too - editing only here would fix 1080p and leave
+   1440p inset. */
+.pick-section {
+    left: 0;
+    right: 0;
+    border-radius: 0;
+}
