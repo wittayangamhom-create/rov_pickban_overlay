@@ -981,3 +981,51 @@ body.panels-off .team-center-card {
 
 /* The active-slot highlight survives on purpose - the operator needs to see
    which slot the draft is on regardless of which look is chosen. */
+
+/* ============================================================
+   BOTTOM SECTION - CANVA DESIGN LANGUAGE
+   Translates the look of the Canva strip into the built-in
+   panel: deep navy body, a bright hairline along the top edge,
+   cyan bleeding in from the blue side and red from the red side,
+   and a warm accent at centre.
+
+   Self-contained and last in the file. Deleting this block
+   restores the previous look exactly - nothing above is edited.
+   ============================================================ */
+
+.pick-section {
+    background:
+        /* warm centre accent, echoing the gold mark in the design */
+        radial-gradient(120% 90% at 50% 0%, rgba(245, 158, 11, 0.16), rgba(245, 158, 11, 0) 42%),
+        /* body: transparent at the top so hero art breathes, solid at the base */
+        linear-gradient(180deg, rgba(4, 8, 20, 0) 0%, rgba(4, 8, 20, 0.55) 14%, rgba(4, 8, 20, 0.95) 100%),
+        /* team colours bleeding in from each side */
+        linear-gradient(90deg, rgba(34, 211, 238, 0.17) 0%, rgba(8, 12, 28, 0.3) 50%, rgba(248, 113, 113, 0.17) 100%);
+    border-top: 2px solid rgba(186, 230, 253, 0.5);
+    border-bottom: 1px solid rgba(186, 230, 253, 0.14);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.3),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.06),
+        0 -16px 44px rgba(2, 6, 23, 0.5);
+}
+
+/* Thinner, brighter card edges - the design uses hairlines, not heavy frames */
+.blue-team .pick-slot {
+    border: 2px solid rgba(56, 189, 248, 0.5);
+    box-shadow: 0 0 16px rgba(56, 189, 248, 0.18);
+}
+
+.red-team .pick-slot {
+    border: 2px solid rgba(248, 113, 113, 0.5);
+    box-shadow: 0 0 16px rgba(248, 113, 113, 0.18);
+}
+
+.blue-team .pick-slot.filled {
+    border-color: rgba(125, 211, 252, 0.85);
+    box-shadow: 0 0 24px rgba(56, 189, 248, 0.4);
+}
+
+.red-team .pick-slot.filled {
+    border-color: rgba(252, 165, 165, 0.85);
+    box-shadow: 0 0 24px rgba(248, 113, 113, 0.4);
+}
