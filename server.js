@@ -92,10 +92,79 @@ const SKIN_DIR = path.join(__dirname, 'public', 'images', 'skins');
 const SKIN_MAX_BYTES = 8 * 1024 * 1024;
 const SKIN_TYPES = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
 
+// โลโก้ทีม แยกจาก skin เพราะผูกกับทีม ไม่ได้ผูกกับขนาดจอ
+// ชื่อไฟล์มาจากตารางนี้เท่านั้น ไม่เอาค่าจากผู้ใช้มาต่อ path
+const LOGO_SLOTS = { teamBlue: 'blue-team', teamRed: 'red-team' };
+const LOGO_DIR = path.join(PUBLIC_DIR, 'images', 'team-logos');
+const LOGO_MAX_BYTES = 4 * 1024 * 1024;
+
+// ธีมของ overlay ทุกค่าตรงกับ CSS custom property ใน overlay.css
+// ค่า default ต้องตรงกับ :root ในไฟล์นั้นเป๊ะๆ ไม่งั้นกด Reset แล้วหน้าตาเปลี่ยน
+const THEME_DEFAULTS = {
+  blue: '#38bdf8',
+  red: '#f87171',
+  accent: '#f59e0b',
+  text: '#ffffff',
+  label: '#c0c0c0',
+  typeCaption: 14,
+  typePlayer: 18,
+  typeTournament: 18,
+  typeTitle: 24,
+  typeScore: 42,
+  typeTimer: 40,
+  logoSize: 138,
+  logoInset: 10
+};
+
+// ช่วงที่ยอมให้ปรับ กว้างพอให้เล่นได้ แต่ไม่ถึงขั้นทำ layout พัง
+const THEME_NUMBER_RANGE = {
+  typeCaption: [8, 40],
+  typePlayer: [10, 48],
+  typeTournament: [10, 48],
+  typeTitle: [10, 60],
+  typeScore: [12, 96],
+  typeTimer: [12, 96],
+  logoSize: [40, 260],
+  logoInset: [-40, 200]
+};
+const THEME_COLOR_KEYS = ['blue', 'red', 'accent', 'text', 'label'];
+
+// คีย์ลัดของหน้า Control Panel ตั้งค่าได้จากหน้า /hotkeys
+//
+// code = event.code ของปุ่มจริง เช่น 'Space', 'KeyZ', 'ArrowLeft'
+// ยกเว้นปุ่ม modifier ล้วน เก็บเป็นชื่อจาก event.key ('Alt', 'Control', ...)
+// เพราะจะถูกดักตอน "แตะเดี่ยวๆ" ไม่ใช่ตอนกดค้างเป็นคีย์ผสม
+const HOTKEY_MODIFIER_CODES = ['Alt', 'Control', 'Shift', 'Meta'];
+const HOTKEY_DEFAULTS = {
+  toggleBanner: { code: 'Alt', ctrl: false, shift: false, alt: false, meta: false },
+  pauseResume: { code: 'Space', ctrl: false, shift: false, alt: false, meta: false },
+  prevPhase: { code: 'ArrowLeft', ctrl: false, shift: false, alt: false, meta: false },
+  nextPhase: { code: 'ArrowRight', ctrl: false, shift: false, alt: false, meta: false },
+  undo: { code: 'KeyZ', ctrl: true, shift: false, alt: false, meta: false }
+};
+
+// ค่าที่เป็น "การตั้งค่าเครื่องมือ" ไม่ใช่ข้อมูลของแมตช์
+//
+// โหลดพรีเซ็ตหรือกด RESET MATCH คือการเปลี่ยน "แมตช์" ไม่ใช่การล้างค่าที่
+// ตั้งไว้ ธีมที่ปรับทั้งวัน คีย์ลัดที่ผูกไว้ ภาพพื้นหลังที่อัปโหลด และขนาดจอ
+// ต้องอยู่เหมือนเดิม ไม่งั้นโหลดพรีเซ็ตกลางอากาศทีเดียวหน้าตาเปลี่ยนหมด
+const CARRIED_OVER_KEYS = ['overlayVisible', 'overlaySize', 'theme', 'hotkeys', 'skin'];
+
+function carryOverSettings(nextState, previous) {
+  CARRIED_OVER_KEYS.forEach((key) => {
+    if (previous && previous[key] !== undefined) nextState[key] = deepClone(previous[key]);
+  });
+  return nextState;
+}
+
+// logo: v = 0 คือยังไม่มีภาพ, ตัวเลขอื่นคือเวอร์ชันไว้กัน cache
+// เก็บนามสกุลไว้ด้วย overlay จะได้ประกอบ URL ได้เลย ไม่ต้องลองโหลดทีละแบบ
+// อย่าง skin (หน้า overlay เป็นภาพออกอากาศ ลองผิดลองถูกแล้วภาพกระพริบ)
 const defaultState = {
   teamBlue: {
     name: 'BLUE',
     score: 0,
+    logo: { v: 0, ext: '' },
     picks: [null, null, null, null, null],
     bans: [null, null, null, null],
     players: ['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5']
@@ -103,6 +172,7 @@ const defaultState = {
   teamRed: {
     name: 'RED',
     score: 0,
+    logo: { v: 0, ext: '' },
     picks: [null, null, null, null, null],
     bans: [null, null, null, null],
     players: ['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5']
@@ -115,6 +185,10 @@ const defaultState = {
   draftRunning: false,
   // เลือกครั้งเดียว มีผลกับทุกหน้าจอ overlay และ result
   overlaySize: '1080',
+  // ซ่อน/แสดงแถบ overlay ทั้งแถบ ไว้ตัดเข้าเกมโดยไม่ต้องปิด source ใน OBS
+  overlayVisible: true,
+  theme: { ...THEME_DEFAULTS },
+  hotkeys: deepClone(HOTKEY_DEFAULTS),
   skin: {
     enabled: false,     // ใช้ภาพที่อัปโหลดเป็นพื้นหลังหรือไม่
     showPanels: true,   // ยังวาดกรอบ/พื้นหลังแบบเดิมของแอพอยู่หรือไม่
@@ -207,6 +281,16 @@ function removeSkinFiles(slot) {
   });
 }
 
+function logoFilePath(team, ext) {
+  return path.join(LOGO_DIR, `${LOGO_SLOTS[team]}.${ext}`);
+}
+
+function removeLogoFiles(team) {
+  Object.values(SKIN_TYPES).forEach((ext) => {
+    try { fs.unlinkSync(logoFilePath(team, ext)); } catch { /* ไม่มีไฟล์ก็ข้ามไป */ }
+  });
+}
+
 function sanitizeTimer(value) {
   const timer = sanitizeText(value, 8);
   return /^\d{1,2}:\d{2}$/.test(timer) || /^\d{1,3}$/.test(timer) ? timer : '00:00';
@@ -217,11 +301,69 @@ function normalizeArray(values, length, sanitizer) {
   return Array.from({ length }, (_, index) => sanitizer(input[index], index));
 }
 
+// สีต้องเป็น #rrggbb เท่านั้น ค่านี้ถูกเอาไปยัดใส่ CSS custom property
+// ตรงๆ ปล่อยให้กรอกอะไรก็ได้เท่ากับเปิดช่องให้แทรก CSS
+function sanitizeThemeColor(value, fallback) {
+  return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value.trim())
+    ? value.trim().toLowerCase()
+    : fallback;
+}
+
+function sanitizeTheme(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const theme = {};
+
+  THEME_COLOR_KEYS.forEach((key) => {
+    theme[key] = sanitizeThemeColor(source[key], THEME_DEFAULTS[key]);
+  });
+
+  Object.entries(THEME_NUMBER_RANGE).forEach(([key, [min, max]]) => {
+    const n = Number(source[key]);
+    theme[key] = Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : THEME_DEFAULTS[key];
+  });
+
+  return theme;
+}
+
+// code มาจากผู้ใช้กดปุ่มอะไรก็ได้ จำกัดรูปแบบไว้ให้เป็นชื่อ code ของ DOM
+// เท่านั้น ค่านี้ถูกเอาไปเทียบกับ event.code ตรงๆ ไม่ได้เอาไปต่อเป็น HTML
+function sanitizeHotkeyBinding(value, fallback) {
+  const source = value && typeof value === 'object' ? value : {};
+  const code = typeof source.code === 'string' ? source.code.trim() : '';
+  if (!/^[A-Za-z][A-Za-z0-9]{0,19}$/.test(code)) return { ...fallback };
+  return {
+    code,
+    ctrl: source.ctrl === true,
+    shift: source.shift === true,
+    alt: source.alt === true,
+    meta: source.meta === true
+  };
+}
+
+function sanitizeHotkeys(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const hotkeys = {};
+  Object.entries(HOTKEY_DEFAULTS).forEach(([action, fallback]) => {
+    hotkeys[action] = sanitizeHotkeyBinding(source[action], fallback);
+  });
+  return hotkeys;
+}
+
+// นามสกุลต้องเป็นค่าที่รู้จักเท่านั้น เพราะถูกเอาไปต่อเป็นชื่อไฟล์
+function sanitizeLogo(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const v = Number(source.v);
+  const ext = Object.values(SKIN_TYPES).includes(source.ext) ? source.ext : '';
+  if (!Number.isFinite(v) || v <= 0 || !ext) return { v: 0, ext: '' };
+  return { v: Math.trunc(v), ext };
+}
+
 function sanitizeTeam(team, fallback) {
   const source = team && typeof team === 'object' ? team : {};
   return {
     name: sanitizeText(source.name, 24) || fallback.name,
     score: clampNumber(source.score, 0, 99),
+    logo: sanitizeLogo(source.logo),
     picks: normalizeArray(source.picks, 5, sanitizeHero),
     bans: normalizeArray(source.bans, 4, sanitizeHero),
     players: normalizeArray(source.players, 5, (name, index) => (
@@ -283,6 +425,9 @@ function sanitizeState(state) {
     draftActiveSlots: Array.isArray(source.draftActiveSlots) ? source.draftActiveSlots.filter(isSlotId).slice(0, 2) : [],
     draftRunning: false,
     overlaySize: sanitizeOverlaySize(source.overlaySize),
+    overlayVisible: source.overlayVisible !== false,
+    theme: sanitizeTheme(source.theme),
+    hotkeys: sanitizeHotkeys(source.hotkeys),
     skin: sanitizeSkin(source.skin),
     matchInfo: {
       title: sanitizeText(source.matchInfo?.title, 80) || defaultState.matchInfo.title,
@@ -472,9 +617,17 @@ function controlEvent(socket, eventName, handler) {
   });
 }
 
+// / เป็นหน้าแรกแล้ว ไม่ใช่ control panel
+// control ย้ายไป /control ส่วน /index.html ทิ้ง redirect ไว้ให้ของเก่าที่ bookmark ไว้
 app.get('/', (req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, 'home.html'));
+});
+
+app.get('/control', (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'control.html'));
 });
+
+app.get('/index.html', (req, res) => res.redirect('/control'));
 
 app.get('/overlay', (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'overlay.html'));
@@ -493,6 +646,14 @@ app.get('/design', (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'design.html'));
 });
 
+app.get('/hotkeys', (req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, 'hotkeys.html'));
+});
+
+app.get('/presets', (req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, 'presets.html'));
+});
+
 app.get('/api/heroes', (req, res) => {
   res.json(heroesData);
 });
@@ -505,8 +666,40 @@ app.get('/api/draft-sequence', (req, res) => {
   res.json({ sequence: DRAFT_SEQUENCE });
 });
 
+// ย่อพรีเซ็ตให้เหลือเท่าที่หน้า /presets ต้องใช้แสดงการ์ด
+// ไม่ส่ง state ทั้งก้อนกลับไป เพราะรายการเดียวก็ใหญ่แล้ว
+function presetSummary(name, preset) {
+  const countFilled = (list) => (Array.isArray(list) ? list.filter(Boolean).length : 0);
+  return {
+    name,
+    tournament: preset?.matchInfo?.tournament || '',
+    title: preset?.matchInfo?.title || '',
+    blue: {
+      name: preset?.teamBlue?.name || '',
+      score: preset?.teamBlue?.score ?? 0,
+      players: Array.isArray(preset?.teamBlue?.players) ? preset.teamBlue.players : [],
+      picks: countFilled(preset?.teamBlue?.picks),
+      bans: countFilled(preset?.teamBlue?.bans)
+    },
+    red: {
+      name: preset?.teamRed?.name || '',
+      score: preset?.teamRed?.score ?? 0,
+      players: Array.isArray(preset?.teamRed?.players) ? preset.teamRed.players : [],
+      picks: countFilled(preset?.teamRed?.picks),
+      bans: countFilled(preset?.teamRed?.bans)
+    }
+  };
+}
+
+// presets = ชื่อล้วน ของเดิม ไม่แตะ / details = ข้อมูลย่อสำหรับหน้าใหม่
+// ทุก endpoint ที่แก้รายการส่งชุดนี้กลับไป หน้าเว็บจะได้ไม่ต้องยิงซ้ำ
+function presetListPayload(presets) {
+  const names = Object.keys(presets).sort((a, b) => a.localeCompare(b));
+  return { presets: names, details: names.map((name) => presetSummary(name, presets[name])) };
+}
+
 app.get('/api/presets', (req, res) => {
-  res.json({ presets: Object.keys(readPresets()).sort((a, b) => a.localeCompare(b)) });
+  res.json(presetListPayload(readPresets()));
 });
 
 app.post('/api/presets', requireControl, (req, res) => {
@@ -514,9 +707,37 @@ app.post('/api/presets', requireControl, (req, res) => {
   if (!name) return res.status(400).json({ error: 'Preset name is required' });
   const presets = readPresets();
   const sourceState = req.body?.state && typeof req.body.state === 'object' ? req.body.state : gameState;
-  presets[name] = sanitizeState(sourceState);
+  // พรีเซ็ตเก็บเฉพาะข้อมูลแมตช์ ตัดการตั้งค่าเครื่องมือทิ้ง
+  // ตอนโหลดก็ไม่ได้เอาไปใช้อยู่แล้ว เก็บไว้มีแต่จะทำให้เข้าใจผิดว่ามันผูกกัน
+  const preset = sanitizeState(sourceState);
+  CARRIED_OVER_KEYS.forEach((key) => { delete preset[key]; });
+  presets[name] = preset;
   writeJson(PRESETS_PATH, presets);
-  res.json({ ok: true, presets: Object.keys(presets).sort((a, b) => a.localeCompare(b)) });
+  res.json({ ok: true, ...presetListPayload(presets) });
+});
+
+// ชื่อพรีเซ็ตถูกใช้เป็น key ของ object เท่านั้น ไม่ได้เอาไปต่อเป็น path
+// เช็คด้วย hasOwnProperty กัน key อย่าง __proto__ ที่ไม่ใช่ของจริง
+app.delete('/api/presets/:name', requireControl, (req, res) => {
+  const name = sanitizeText(req.params.name, 40);
+  const presets = readPresets();
+  if (!name || !Object.prototype.hasOwnProperty.call(presets, name)) {
+    return res.status(404).json({ error: 'Preset not found' });
+  }
+  delete presets[name];
+  writeJson(PRESETS_PATH, presets);
+  res.json({ ok: true, ...presetListPayload(presets) });
+});
+
+// พรีเซ็ตเต็มก้อน ไว้ให้หน้าแก้ไขดึงค่าเดิมมาใส่ฟอร์ม
+// ต้องเป็นก้อนเต็มเพราะตอนเซฟกลับต้องรักษา pick/ban ที่ฟอร์มไม่ได้แตะไว้ด้วย
+app.get('/api/presets/:name', (req, res) => {
+  const name = sanitizeText(req.params.name, 40);
+  const presets = readPresets();
+  if (!name || !Object.prototype.hasOwnProperty.call(presets, name)) {
+    return res.status(404).json({ error: 'Preset not found' });
+  }
+  res.json({ name, state: presets[name] });
 });
 
 app.post('/api/presets/load', requireControl, (req, res) => {
@@ -524,7 +745,8 @@ app.post('/api/presets/load', requireControl, (req, res) => {
   const preset = readPresets()[name];
   if (!preset) return res.status(404).json({ error: 'Preset not found' });
   stopDraftTimer();
-  gameState = sanitizeState(preset);
+  const previous = gameState;
+  gameState = carryOverSettings(sanitizeState(preset), previous);
   draftSeconds = parseTimeToSeconds(gameState.timer);
   emitState();
   res.json({ ok: true, state: gameState });
@@ -588,9 +810,58 @@ app.delete('/api/skin/:slot', requireControl, (req, res) => {
   res.json({ ok: true, skin: gameState.skin });
 });
 
+// ตรวจแบบเดียวกับ skin: ชื่อทีมต้องอยู่ในตาราง, content-type ต้องรองรับ
+// และ magic bytes ต้องตรงกับชนิดที่บอกมาจริงๆ
+app.post(
+  '/api/team-logo/:team',
+  requireControl,
+  express.raw({ type: Object.keys(SKIN_TYPES), limit: LOGO_MAX_BYTES }),
+  (req, res) => {
+    const team = req.params.team;
+    if (!Object.prototype.hasOwnProperty.call(LOGO_SLOTS, team)) {
+      return res.status(400).json({ error: 'Unknown team' });
+    }
+
+    const ext = SKIN_TYPES[String(req.get('content-type')).split(';')[0].trim()];
+    if (!ext) return res.status(415).json({ error: 'Use a PNG, JPG or WEBP image' });
+
+    const body = req.body;
+    if (!Buffer.isBuffer(body) || body.length === 0) {
+      return res.status(400).json({ error: 'Empty upload' });
+    }
+    if (!SKIN_MAGIC[ext](body)) {
+      return res.status(400).json({ error: 'File contents do not match its type' });
+    }
+
+    try {
+      fs.mkdirSync(LOGO_DIR, { recursive: true });
+      removeLogoFiles(team); // กันไฟล์นามสกุลเดิมค้างอยู่ตอนเปลี่ยนชนิดภาพ
+      fs.writeFileSync(logoFilePath(team, ext), body);
+    } catch (error) {
+      return res.status(500).json({ error: `Could not save logo: ${error.message}` });
+    }
+
+    gameState[team].logo = { v: Date.now(), ext };
+    emitState();
+    res.json({ ok: true, team, ext, bytes: body.length, logo: gameState[team].logo });
+  }
+);
+
+app.delete('/api/team-logo/:team', requireControl, (req, res) => {
+  const team = req.params.team;
+  if (!Object.prototype.hasOwnProperty.call(LOGO_SLOTS, team)) {
+    return res.status(400).json({ error: 'Unknown team' });
+  }
+  removeLogoFiles(team);
+  gameState[team].logo = { v: 0, ext: '' };
+  emitState();
+  res.json({ ok: true, team, logo: gameState[team].logo });
+});
+
 app.post('/api/reset-state', requireControl, (req, res) => {
   stopDraftTimer();
-  gameState = sanitizeState(defaultState);
+  const previous = gameState; // RESET MATCH ล้างแมตช์ ไม่ใช่ล้างการตั้งค่า
+  gameState = carryOverSettings(sanitizeState(defaultState), previous);
   draftSeconds = parseTimeToSeconds(gameState.timer);
   emitState();
   res.json({ ok: true, state: gameState });
@@ -701,6 +972,39 @@ io.on('connection', (socket) => {
     emitState();
   });
 
+  // ส่ง visible มาเป็น true/false ก็ตั้งค่าตามนั้น ไม่ส่งมาคือสลับ
+  // ปุ่มบนหน้า control ส่งค่ามาตรงๆ ส่วนคีย์ลัดปล่อยให้ฝั่งนี้สลับให้
+  // เพราะถ้าเปิด control ไว้หลายเครื่อง ต่างเครื่องอาจเห็นสถานะไม่ตรงกัน
+  // patch ทีละคีย์ หน้า design ส่งมาเฉพาะตัวที่เพิ่งลาก
+  // ค่าที่ไม่รู้จักถูก sanitizeTheme ตัดทิ้งเอง
+  controlEvent(socket, 'updateTheme', (data) => {
+    if (!data || typeof data !== 'object') return;
+    gameState.theme = sanitizeTheme({ ...gameState.theme, ...data });
+    emitState();
+  });
+
+  controlEvent(socket, 'updateHotkeys', (data) => {
+    if (!data || typeof data !== 'object') return;
+    gameState.hotkeys = sanitizeHotkeys({ ...gameState.hotkeys, ...data });
+    emitState();
+  });
+
+  controlEvent(socket, 'resetHotkeys', () => {
+    gameState.hotkeys = deepClone(HOTKEY_DEFAULTS);
+    emitState();
+  });
+
+  controlEvent(socket, 'resetTheme', () => {
+    gameState.theme = { ...THEME_DEFAULTS };
+    emitState();
+  });
+
+  controlEvent(socket, 'setOverlayVisible', (data) => {
+    const next = typeof data?.visible === 'boolean' ? data.visible : !gameState.overlayVisible;
+    gameState.overlayVisible = next;
+    emitState();
+  });
+
   controlEvent(socket, 'updateMatchInfo', (data) => {
     gameState.matchInfo = {
       title: sanitizeText(data.title, 80) || gameState.matchInfo.title,
@@ -764,7 +1068,9 @@ server.listen(PORT, HOST, () => {
   console.log('===========================================');
   console.log('ROV Overlay Tool Server Running');
   console.log('===========================================');
-  console.log(`Control Panel: http://${HOST}:${PORT}`);
+  console.log(`Home: http://${HOST}:${PORT}`);
+  console.log(`Control Panel: http://${HOST}:${PORT}/control`);
+  console.log(`Presets: http://${HOST}:${PORT}/presets`);
   console.log(`Overlay 1920x1080: http://${HOST}:${PORT}/overlay`);
   console.log(`Overlay 2560x1440: http://${HOST}:${PORT}/overlay-1440`);
   console.log(`Result: http://${HOST}:${PORT}/result`);

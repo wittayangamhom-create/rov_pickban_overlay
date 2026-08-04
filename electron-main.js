@@ -165,7 +165,8 @@ function buildMenu() {
       label: 'ROV Tool',
       submenu: [
         {
-          label: 'Control Panel',
+          // หน้าต่างหลักเปิดที่ / ซึ่งตอนนี้เป็นหน้าแรก ไม่ใช่ control panel
+          label: 'Home',
           click: () => {
             if (mainWindow && !mainWindow.isDestroyed()) {
               mainWindow.focus();
@@ -173,6 +174,14 @@ function buildMenu() {
               mainWindow = createWindow('/');
             }
           }
+        },
+        {
+          label: 'Control Panel',
+          click: () => openToolWindow('Control Panel', '/control', 1280, 900)
+        },
+        {
+          label: 'Presets',
+          click: () => openToolWindow('Presets', '/presets', 1150, 900)
         },
         {
           label: 'Overlay 1080p',

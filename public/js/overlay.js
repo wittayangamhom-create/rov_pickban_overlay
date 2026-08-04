@@ -15,6 +15,105 @@ function imageUrl(folder, name) {
     return `images/${folder}/${encodeURIComponent(name)}.png`;
 }
 
+const LOGO_FILES = { teamBlue: 'blue-team', teamRed: 'red-team' };
+
+// THEME ----------------------------------------------------------------
+// Maps state.theme onto the CSS custom properties declared in :root.
+// Values are written on <html> so they override the stylesheet without it
+// needing to know anything about the Design page.
+//
+// Colours arrive validated as #rrggbb from the server, numbers clamped -
+// nothing here is interpolated into CSS without having passed that.
+const THEME_VARS = {
+    blue: ['--ov-blue', (v) => v],
+    red: ['--ov-red', (v) => v],
+    accent: ['--ov-accent', (v) => v],
+    text: ['--ov-text', (v) => v],
+    label: ['--ov-silver', (v) => v],
+    typeCaption: ['--ov-type-caption', (v) => `${v}px`],
+    typePlayer: ['--ov-type-player', (v) => `${v}px`],
+    typeTournament: ['--ov-type-tournament', (v) => `${v}px`],
+    typeTitle: ['--ov-type-title', (v) => `${v}px`],
+    typeScore: ['--ov-type-score', (v) => `${v}px`],
+    typeTimer: ['--ov-type-timer', (v) => `${v}px`],
+    logoSize: ['--ov-logo-size', (v) => `${v}px`],
+    logoInset: ['--ov-logo-inset', (v) => `${v}px`]
+};
+
+// rgb() needs the channels separately for the borders that use alpha
+function hexToRgbTriplet(hex) {
+    const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || '');
+    return m ? `${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}` : null;
+}
+
+function applyTheme(theme) {
+    if (!theme || typeof theme !== 'object') return;
+    const root = document.documentElement;
+
+    Object.entries(THEME_VARS).forEach(([key, [prop, format]]) => {
+        const value = theme[key];
+        if (value === undefined || value === null || value === '') return;
+        root.style.setProperty(prop, format(value));
+    });
+
+    const blueRgb = hexToRgbTriplet(theme.blue);
+    const redRgb = hexToRgbTriplet(theme.red);
+    if (blueRgb) root.style.setProperty('--ov-blue-rgb', blueRgb);
+    if (redRgb) root.style.setProperty('--ov-red-rgb', redRgb);
+}
+
+// The first state arrives after the socket connects, which is already a
+// frame or two after paint. Setting the hidden class then would play the
+// slide-out on a page that should have started off-screen - visible every
+// time the OBS source refreshes mid-match. Suppress the transition for
+// that one update only.
+let overlayVisibleApplied = false;
+
+function applyOverlayVisible(visible) {
+    const body = document.body;
+    if (overlayVisibleApplied) {
+        body.classList.toggle('overlay-hidden', !visible);
+        return;
+    }
+
+    body.classList.add('no-anim');
+    body.classList.toggle('overlay-hidden', !visible);
+    void body.offsetWidth; // flush the class change before re-enabling motion
+    body.classList.remove('no-anim');
+    overlayVisibleApplied = true;
+}
+
+// Only touches src when the version actually changes. Reassigning src on
+// every state update - and these arrive once a second while the draft
+// timer runs - makes the image blink on air in OBS.
+function renderTeamLogo(el, team, logo) {
+    if (!el) return;
+    const version = logo?.v || 0;
+    const ext = logo?.ext || '';
+
+    if (!version || !ext) {
+        el.hidden = true;
+        el.removeAttribute('src');
+        el.dataset.version = '';
+        return;
+    }
+
+    const stamp = `${version}.${ext}`;
+    if (el.dataset.version === stamp) return;
+    el.dataset.version = stamp;
+
+    // If the file is missing the element still holds its 138px box, leaving a
+    // hole in the banner on air. State can outlive the file - the images live
+    // on disk while the version lives in state.json, so restoring an old state
+    // or moving the app between machines can point at art that is not there.
+    el.onerror = () => {
+        el.hidden = true;
+        el.dataset.version = '';
+    };
+    el.src = `images/team-logos/${LOGO_FILES[team]}.${ext}?v=${version}`;
+    el.hidden = false;
+}
+
 // "00:09" -> 9. รองรับกรณีส่งมาเป็นวินาทีล้วนด้วย
 function timerToSeconds(timer) {
     if (!timer) return 0;
@@ -36,7 +135,18 @@ function updateOverlay(state) {
     // Update center team names
     document.getElementById('blueCenterName').textContent = state.teamBlue.name;
     document.getElementById('redCenterName').textContent = state.teamRed.name;
-    
+
+    applyTheme(state.theme);
+
+    // Update team logos
+    renderTeamLogo(document.getElementById('blueTeamLogo'), 'teamBlue', state.teamBlue.logo);
+    renderTeamLogo(document.getElementById('redTeamLogo'), 'teamRed', state.teamRed.logo);
+
+    // Show / hide the whole banner - CSS slides it off the bottom edge.
+    // A class on <body> rather than a display change: the layout stays
+    // measured, so OBS never sees the source blank and relayout.
+    applyOverlayVisible(state.overlayVisible !== false);
+
     // Update scores
     document.getElementById('blueScore').textContent = state.teamBlue.score;
     document.getElementById('redScore').textContent = state.teamRed.score;

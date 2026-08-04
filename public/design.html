@@ -12,7 +12,12 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 .topbar{background:var(--s1);border-bottom:1px solid var(--border);padding:0 18px;height:50px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;}
 .logo{font-family:var(--hf);font-size:18px;font-weight:900;letter-spacing:3px;color:var(--green);white-space:nowrap;}
 .logo span{color:rgba(255,255,255,0.3);}
-.topbar-links{margin-left:auto;display:flex;gap:8px;align-items:center;}
+/* PAGE NAV - identical markup, order and styling on all four pages, so the
+   same button is always in the same place. The current page is marked rather
+   than removed, so the row never changes width as you move between pages. */
+.topnav{margin-left:auto;display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.topnav .tlink.active{background:var(--s1);color:var(--text);border-color:var(--blue);cursor:default;}
+.topnav .tlink.active:hover{color:var(--text);border-color:var(--blue);}
 .tlink{padding:5px 13px;border-radius:6px;font-family:var(--hf);font-size:12px;font-weight:800;letter-spacing:1px;cursor:pointer;border:1px solid var(--border2);background:var(--s3);color:var(--muted2);transition:all 0.2s;text-decoration:none;}
 .tlink:hover{color:var(--blue);border-color:var(--blue);}
 .tlink.danger{color:#fca5a5;}
@@ -21,6 +26,50 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 .wrap{max-width:1280px;margin:0 auto;padding:18px 14px 60px;}
 .panel{background:var(--s1);border-radius:12px;border:1px solid var(--border);overflow:hidden;margin-bottom:14px;}
 .panel.design-panel{border-top:3px solid var(--green);}
+
+/* THEME EDITOR */
+.panel.theme-panel{border-top:3px solid var(--gold);}
+.theme-note{font-size:11px;color:var(--muted);}
+.theme-group-title{font-family:var(--hf);font-size:11px;font-weight:800;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin:4px 0 10px;}
+.theme-group-title:not(:first-child){margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+.theme-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
+.trow{background:var(--s2);border:1px solid var(--border);border-radius:9px;padding:11px 12px;}
+.trow-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.trow-label{flex:1;min-width:0;font-size:11px;font-weight:700;letter-spacing:0.5px;color:var(--text);}
+.trow-value{font-family:Consolas,'Courier New',monospace;font-size:11px;color:var(--muted2);}
+.trow.changed .trow-value{color:var(--gold);}
+.trow input[type=color]{width:38px;height:28px;padding:0;border:1px solid var(--border2);border-radius:6px;background:var(--s3);cursor:pointer;}
+.trow input[type=range]{width:100%;accent-color:var(--gold);cursor:pointer;}
+.trow-inputs{display:flex;align-items:center;gap:9px;}
+.trow-inputs input[type=text]{flex:1;min-width:0;padding:5px 8px;background:var(--s3);border:1px solid var(--border2);color:var(--text);border-radius:6px;font-family:Consolas,'Courier New',monospace;font-size:12px;text-transform:lowercase;}
+.trow-inputs input[type=text]:focus{outline:none;border-color:var(--gold);}
+.trow-inputs input[type=text].invalid{border-color:var(--red);}
+.theme-hint{margin-top:18px;padding:11px 13px;background:var(--s2);border:1px solid var(--border);border-left:3px solid var(--gold);border-radius:8px;font-size:11px;line-height:1.7;color:var(--muted2);}
+
+/* LIVE PREVIEW
+   Sticky so it stays on screen while you scroll the controls below it -
+   adjusting a colour you cannot see at the same time is guesswork. */
+.theme-preview{position:sticky;top:58px;z-index:5;margin-bottom:20px;padding-bottom:12px;background:var(--s1);}
+.tp-frame{--tp-scale:0.25;--tp-w:1920px;--tp-h:1080px;
+  width:calc(var(--tp-w) * var(--tp-scale));height:calc(var(--tp-h) * var(--tp-scale));
+  max-width:100%;border:1px solid var(--border2);border-radius:9px;overflow:hidden;position:relative;}
+/* The overlay is transparent - the backdrop stands in for gameplay footage.
+   Judging colours against one fixed background is misleading, hence the switch. */
+.tp-frame.dark{background:#141a24;}
+.tp-frame.light{background:#c8cdd6;}
+.tp-frame.checker{background-color:#2a3240;background-image:
+  linear-gradient(45deg,#1d2430 25%,transparent 25%),linear-gradient(-45deg,#1d2430 25%,transparent 25%),
+  linear-gradient(45deg,transparent 75%,#1d2430 75%),linear-gradient(-45deg,transparent 75%,#1d2430 75%);
+  background-size:18px 18px;background-position:0 0,0 9px,9px -9px,-9px 0;}
+.tp-frame iframe{width:var(--tp-w);height:var(--tp-h);border:0;display:block;
+  transform:scale(var(--tp-scale));transform-origin:top left;pointer-events:none;}
+.tp-meta{display:flex;align-items:center;gap:9px;margin-top:8px;flex-wrap:wrap;}
+.tp-caption{font-size:11px;color:var(--muted);}
+.tp-backdrops{display:flex;gap:3px;margin-left:auto;}
+.tp-bd{padding:3px 8px;border-radius:5px;border:1px solid var(--border2);background:var(--s3);color:var(--muted);font-family:var(--hf);font-size:10px;font-weight:800;letter-spacing:0.8px;cursor:pointer;}
+.tp-bd:hover{color:var(--text);}
+.tp-bd.active{background:var(--gold);border-color:var(--gold);color:#1a1205;}
+@media (max-width:700px){.tp-frame{--tp-scale:0.17;}.theme-preview{position:static;}}
 .panel-head{display:flex;align-items:center;gap:10px;padding:11px 16px;background:var(--s2);border-bottom:1px solid var(--border);flex-wrap:wrap;}
 .panel-title{font-family:var(--hf);font-size:15px;font-weight:900;letter-spacing:2px;text-transform:uppercase;}
 .panel-body{padding:16px;}
@@ -67,14 +116,69 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 
 <div class="topbar">
   <div class="logo">ROV <span>|</span> DESIGN</div>
-  <div class="topbar-links">
-    <a class="tlink" href="/">&#8592; CONTROL PANEL</a>
-    <a class="tlink" href="/overlay" target="_blank">OVERLAY</a>
-    <a class="tlink" href="/result" target="_blank">RESULT</a>
-  </div>
+  <nav class="topnav" aria-label="Pages">
+    <a class="tlink" href="/">HOME</a>
+    <a class="tlink" href="/control">CONTROL</a>
+    <a class="tlink" href="/presets">PRESETS</a>
+    <a class="tlink active" href="/design" aria-current="page">DESIGN</a>
+    <a class="tlink" href="/hotkeys">HOTKEYS</a>
+  </nav>
 </div>
 
 <div class="wrap">
+
+  <div class="panel theme-panel">
+    <div class="panel-head">
+      <div class="panel-title">Overlay theme</div>
+      <span class="theme-note">Changes show on the overlay as you make them</span>
+      <button class="tlink danger" type="button" id="themeReset" style="margin-left:auto">RESET TO ORIGINAL</button>
+    </div>
+    <div class="panel-body">
+
+      <!-- The real overlay in an iframe, scaled down. Not a mock-up: it runs
+           the same stylesheet and its own socket, so it reflects theme, picks,
+           bans, timer and the on-air toggle without this page doing anything. -->
+      <div class="theme-preview">
+        <div class="tp-frame checker" id="tpFrame">
+          <iframe id="themePreview" title="Overlay preview" scrolling="no" tabindex="-1"></iframe>
+        </div>
+        <div class="tp-meta">
+          <span class="tp-caption" id="tpCaption">Live preview</span>
+          <span class="tp-backdrops">
+            <button class="tp-bd" type="button" data-bd="checker">CHECKER</button>
+            <button class="tp-bd" type="button" data-bd="dark">DARK</button>
+            <button class="tp-bd" type="button" data-bd="light">LIGHT</button>
+          </span>
+          <button class="tlink" type="button" id="tpReload">RELOAD</button>
+        </div>
+      </div>
+
+      <!-- Grouped by where a thing appears on the banner rather than by what
+           kind of property it is. Looking for the score, you look under Centre
+           column - you do not have to know it is a "size" and not a "colour". -->
+      <div class="theme-group-title">Team colours</div>
+      <div class="theme-grid" id="themeTeamColours"></div>
+
+      <div class="theme-group-title">Centre column</div>
+      <div class="theme-grid" id="themeCentre"></div>
+
+      <div class="theme-group-title">Hero cards</div>
+      <div class="theme-grid" id="themeCards"></div>
+
+      <div class="theme-group-title">Ban row and labels</div>
+      <div class="theme-grid" id="themeLabels"></div>
+
+      <div class="theme-group-title">Team logo</div>
+      <div class="theme-grid" id="themeLogo"></div>
+
+      <div class="theme-hint">
+        Text sizes move the centre column - the score, timer and match title sit on
+        the bottom edge of the banner, so making them bigger pushes everything above
+        them upward. If the logos start crowding the score, bring a size back down or
+        use Reset.
+      </div>
+    </div>
+  </div>
 
   <div class="panel design-panel">
     <div class="panel-head">

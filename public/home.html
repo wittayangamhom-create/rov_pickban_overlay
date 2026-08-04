@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROV Overlay Tool</title>
+<style>
+:root{--bg:#0b0c14;--s1:#111220;--s2:#181929;--s3:#1e2035;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--blue:#3b82f6;--red:#ef4444;--gold:#f59e0b;--green:#10b981;--purple:#8b5cf6;--text:#e2e8f0;--muted:#4a5568;--muted2:#64748b;--hf:'Arial Narrow','Segoe UI Condensed','Segoe UI',Arial,sans-serif;--bf:'Segoe UI',Arial,sans-serif;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100vh;}
+
+.topbar{background:var(--s1);border-bottom:1px solid var(--border);padding:0 18px;height:50px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;}
+.logo{font-family:var(--hf);font-size:18px;font-weight:900;letter-spacing:3px;color:var(--blue);white-space:nowrap;}
+.logo span{color:rgba(255,255,255,0.3);}
+/* PAGE NAV - identical markup, order and styling on all four pages, so the
+   same button is always in the same place. The current page is marked rather
+   than removed, so the row never changes width as you move between pages. */
+.topnav{margin-left:auto;display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.topnav .tlink.active{background:var(--s1);color:var(--text);border-color:var(--blue);cursor:default;}
+.topnav .tlink.active:hover{color:var(--text);border-color:var(--blue);}
+.tlink{padding:5px 13px;border-radius:6px;font-family:var(--hf);font-size:12px;font-weight:800;letter-spacing:1px;cursor:pointer;border:1px solid var(--border2);background:var(--s3);color:var(--muted2);transition:all 0.2s;text-decoration:none;}
+.tlink:hover{color:var(--blue);border-color:var(--blue);}
+
+.wrap{max-width:1080px;margin:0 auto;padding:22px 14px 60px;}
+
+/* LIVE STATUS */
+.status{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.status-dot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;background:var(--muted);}
+.status.online .status-dot{background:var(--green);box-shadow:0 0 8px rgba(16,185,129,0.7);}
+.status.offline .status-dot{background:var(--red);}
+.status-label{font-family:var(--hf);font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted2);}
+.status-match{flex:1;min-width:200px;display:flex;align-items:center;gap:10px;font-family:var(--hf);font-size:16px;font-weight:900;letter-spacing:0.5px;}
+.sm-blue{color:#7dd3fc;}
+.sm-red{color:#fca5a5;}
+.sm-score{color:var(--text);}
+.status-tags{display:flex;gap:7px;flex-wrap:wrap;}
+.stag{padding:4px 10px;border-radius:999px;border:1px solid var(--border2);background:var(--s3);font-size:11px;font-weight:700;letter-spacing:0.5px;color:var(--muted2);}
+.stag.on{color:var(--green);border-color:rgba(16,185,129,0.45);}
+.stag.off{color:var(--red);border-color:rgba(239,68,68,0.45);}
+
+/* SECTIONS */
+.section-title{font-family:var(--hf);font-size:12px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);margin:0 0 11px 2px;}
+.section{margin-bottom:26px;}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;}
+
+.card{display:flex;flex-direction:column;gap:7px;background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:16px;text-decoration:none;color:inherit;transition:border-color 0.18s,transform 0.18s;position:relative;overflow:hidden;}
+.card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--muted);transition:background 0.18s;}
+.card:hover{border-color:var(--border2);transform:translateY(-2px);}
+.card-title{font-family:var(--hf);font-size:16px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;}
+.card-desc{font-size:12px;line-height:1.6;color:var(--muted2);}
+.card.blue::before{background:var(--blue);} .card.blue:hover{border-color:var(--blue);} .card.blue .card-title{color:#93c5fd;}
+.card.purple::before{background:var(--purple);} .card.purple:hover{border-color:var(--purple);} .card.purple .card-title{color:#c4b5fd;}
+.card.green::before{background:var(--green);} .card.green:hover{border-color:var(--green);} .card.green .card-title{color:#6ee7b7;}
+.card.gold::before{background:var(--gold);} .card.gold:hover{border-color:var(--gold);} .card.gold .card-title{color:#fcd34d;}
+
+/* OBS SOURCE ROWS */
+.src{display:flex;align-items:center;gap:10px;background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:11px 14px;margin-bottom:8px;flex-wrap:wrap;}
+.src-name{flex:0 0 130px;font-family:var(--hf);font-size:13px;font-weight:800;letter-spacing:1px;}
+.src-url{flex:1;min-width:180px;font-family:Consolas,'Courier New',monospace;font-size:12px;color:var(--muted2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.src-actions{display:flex;gap:6px;flex-wrap:wrap;}
+
+.foot{margin-top:30px;padding-top:16px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);line-height:1.7;}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--s2);border:1px solid var(--border2);border-left:3px solid var(--green);color:var(--text);padding:11px 18px;border-radius:8px;font-size:13px;font-weight:600;opacity:0;transition:all 0.25s;z-index:300;box-shadow:0 8px 26px rgba(0,0,0,0.55);pointer-events:none;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+@media (max-width:640px){
+  .topbar{flex-wrap:wrap;height:auto;padding:8px 12px;}
+  .topnav{margin-left:0;width:100%;}
+  .src-name{flex:1 1 100%;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">ROV <span>|</span> OVERLAY TOOL</div>
+  <nav class="topnav" aria-label="Pages">
+    <a class="tlink active" href="/" aria-current="page">HOME</a>
+    <a class="tlink" href="/control">CONTROL</a>
+    <a class="tlink" href="/presets">PRESETS</a>
+    <a class="tlink" href="/design">DESIGN</a>
+    <a class="tlink" href="/hotkeys">HOTKEYS</a>
+  </nav>
+</div>
+
+<div class="wrap">
+
+  <div class="status" id="status">
+    <span class="status-dot"></span>
+    <span class="status-label" id="statusLabel">Connecting</span>
+    <div class="status-match" id="statusMatch"></div>
+    <div class="status-tags" id="statusTags"></div>
+  </div>
+
+  <!-- Sections are grouped by what you are doing, not by page.
+       A Tournament section slots in above "Run the match" when that exists. -->
+  <div class="section">
+    <div class="section-title">Run the match</div>
+    <div class="cards">
+      <a class="card blue" href="/control">
+        <div class="card-title">Control Panel</div>
+        <div class="card-desc">Drive the draft live - picks, bans, timer, score and team names.</div>
+      </a>
+      <a class="card purple" href="/presets">
+        <div class="card-title">Presets</div>
+        <div class="card-desc">Team line-ups typed up in advance. Load one to set the match in a click.</div>
+      </a>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Look and feel</div>
+    <div class="cards">
+      <a class="card green" href="/design">
+        <div class="card-title">Design</div>
+        <div class="card-desc">Upload your own banner and result backgrounds for each screen size.</div>
+      </a>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">OBS browser sources</div>
+    <div id="sources"></div>
+  </div>
+
+  <div class="foot" id="foot"></div>
+
+</div>
+
+<div class="toast" id="toast_el"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/home.js"></script>
+</body>
+</html>

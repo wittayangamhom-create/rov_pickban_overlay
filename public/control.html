@@ -23,23 +23,16 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 .match-inputs input{min-width:0;}
 .match-inputs input:nth-child(1){flex:1 1 150px;}
 .match-inputs input:nth-child(2){flex:1.5 1 200px;}
-.topbar-links{margin-left:auto;display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
-.overlay-link-group{display:flex;gap:8px;align-items:center;}
-.overlay-url-item{display:flex;align-items:center;gap:3px;}
-.overlay-url-item .tlink:first-child{border-radius:6px 3px 3px 6px;}
-.copy-url-btn{width:28px;height:28px;padding:0;border-radius:3px 6px 6px 3px;font-size:15px;line-height:1;color:#94a3b8;display:inline-flex;align-items:center;justify-content:center;letter-spacing:0;}
-.copy-url-btn:hover{color:var(--green);border-color:var(--green);}
 .tlink{padding:5px 13px;border-radius:6px;font-family:var(--hf);font-size:12px;font-weight:800;letter-spacing:1px;cursor:pointer;border:1px solid var(--border2);background:var(--s3);color:var(--muted2);transition:all 0.2s;text-decoration:none;}
 .tlink:hover{color:var(--blue);border-color:var(--blue);}
-.preset-tools{display:flex;align-items:center;gap:6px;flex:1 1 300px;min-width:0;}
-.preset-tools input,.preset-tools select{height:29px;background:var(--s3);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:4px 8px;font-family:var(--bf);font-size:12px;font-weight:600;min-width:0;}
-.preset-tools input{flex:1 1 90px;}
-.preset-tools select{flex:1 1 100px;}
-.preset-tools .tlink{flex:0 0 auto;white-space:nowrap;}
-.preset-tools input:focus,.preset-tools select:focus{outline:none;border-color:var(--blue);}
 
-.design-link{border-color:rgba(16,185,129,0.45);color:var(--green);}
-.design-link:hover{color:#fff;background:var(--green);border-color:var(--green);}
+/* PAGE NAV - identical markup, order and styling on all four pages, so the
+   same button is always in the same place. The current page is marked rather
+   than removed, so the row never changes width as you move between pages. */
+.topnav{margin-left:auto;display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.topnav .tlink.active{background:var(--s1);color:var(--text);border-color:var(--blue);cursor:default;}
+.topnav .tlink.active:hover{color:var(--text);border-color:var(--blue);}
+.live-switches{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 
 /* Size switch: one choice, applied to every overlay and result screen */
 .size-switch{display:flex;align-items:center;gap:4px;padding:3px 6px 3px 9px;background:var(--s3);border:1px solid var(--border2);border-radius:7px;}
@@ -47,6 +40,8 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 .size-btn{padding:4px 11px;border-radius:5px;border:1px solid transparent;background:none;color:var(--muted2);font-family:var(--hf);font-size:12px;font-weight:800;letter-spacing:0.8px;cursor:pointer;transition:all 0.15s;}
 .size-btn:hover{color:var(--text);}
 .size-btn.active{background:var(--blue);border-color:var(--blue);color:#fff;}
+/* Red when the banner is hidden - "off air" should not look like every other active state. */
+.size-btn.hide-btn.active{background:var(--red);border-color:var(--red);color:#fff;}
 
 /* MAIN GRID */
 .main{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px;max-width:1600px;margin:0 auto;}
@@ -71,6 +66,20 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 .field input{width:100%;padding:7px 10px;background:var(--s3);border:1px solid var(--border2);color:var(--text);border-radius:7px;font-family:var(--bf);font-size:13px;font-weight:600;transition:border-color 0.2s;}
 .field input:focus{outline:none;border-color:var(--blue);}
 
+/* TEAM LOGO */
+.logo-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.logo-preview{width:52px;height:52px;flex:0 0 52px;border-radius:8px;border:1px dashed var(--border2);background:var(--s3) center/contain no-repeat;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted2);text-align:center;cursor:help;}
+.logo-preview.filled{border-style:solid;font-size:0;}
+.logo-actions{flex:1;min-width:0;}
+.logo-actions label{display:block;font-size:10px;letter-spacing:1.5px;color:var(--muted2);text-transform:uppercase;margin-bottom:4px;}
+.logo-buttons{display:flex;gap:6px;}
+.tlink.danger:hover{color:var(--red);border-color:var(--red);}
+
+/* Replaces the SAVE buttons. Sits in the same slot so the row does not reflow,
+   and flashes green briefly when a field has been written to the server. */
+.save-state{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);white-space:nowrap;transition:color 0.2s;align-self:center;}
+.save-state.saved{color:var(--green);}
+
 /* PP TABLE */
 .pp-table{width:100%;border-collapse:separate;border-spacing:0 3px;}
 .pp-table thead th{font-size:10px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;padding:0 4px 5px;font-weight:700;}
@@ -88,7 +97,9 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 .hero-search-input::placeholder{color:var(--muted2);font-weight:600;}
 
 /* Hero suggestion dropdown */
-.hero-dd{position:absolute;z-index:500;max-height:270px;overflow-y:auto;background:var(--s2);border:1px solid var(--border2);border-radius:8px;box-shadow:0 12px 32px rgba(0,0,0,0.55);padding:4px;}
+/* Tall enough to scan a long list; the rest scrolls. overscroll-behavior
+   keeps the wheel from carrying on into the page once the list bottoms out. */
+.hero-dd{position:absolute;z-index:500;max-height:340px;overflow-y:auto;overscroll-behavior:contain;background:var(--s2);border:1px solid var(--border2);border-radius:8px;box-shadow:0 12px 32px rgba(0,0,0,0.55);padding:4px;}
 .hero-dd[hidden]{display:none;}
 .hero-dd-item{padding:6px 10px;border-radius:5px;font-family:var(--bf);font-size:13px;font-weight:600;color:var(--text);cursor:pointer;white-space:nowrap;}
 .hero-dd-item.active{background:var(--blue);color:#fff;}
@@ -149,6 +160,17 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 .bbtn.danger{background:var(--red);color:#fff;}
 .bbtn.neutral{background:var(--s3);color:var(--muted2);border:1px solid var(--border2);}
 .bbtn.neutral:hover{color:var(--text);}
+/* Outlined rather than filled: destructive, but not the loudest thing on the bar. */
+.bbtn.danger-soft{background:var(--s3);color:#fca5a5;border:1px solid rgba(239,68,68,0.40);}
+.bbtn.danger-soft:hover{background:var(--red);color:#fff;border-color:var(--red);}
+
+/* CONFIRM DIALOG - matches the Presets page */
+.modal-backdrop{position:fixed;inset:0;background:rgba(3,5,12,0.72);display:flex;align-items:center;justify-content:center;padding:20px;z-index:600;}
+.modal-backdrop[hidden]{display:none;}
+.modal{background:var(--s1);border:1px solid var(--border2);border-radius:12px;max-width:430px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.6);overflow:hidden;}
+.modal-title{padding:14px 18px;background:var(--s2);border-bottom:1px solid var(--border);font-family:var(--hf);font-size:15px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;}
+.modal-body{padding:16px 18px;font-size:13px;line-height:1.65;color:var(--muted2);}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 16px;}
 .bb-sep{width:1px;height:24px;background:var(--border);}
 .bb-status{font-size:12px;color:var(--muted2);margin-left:16px;font-family:var(--hf);letter-spacing:1px;white-space:nowrap;}
 .kbd-hint{margin-left:auto;display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--muted);letter-spacing:0.3px;}
@@ -166,11 +188,6 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 @media (max-width:1100px){
   .topbar{height:auto;min-height:50px;flex-wrap:wrap;padding:8px 12px;}
   .match-inputs{flex-wrap:wrap;}
-  .preset-tools{flex-wrap:wrap;}
-  .topbar-links{width:100%;margin-left:0;}
-  .overlay-link-group{width:100%;flex-wrap:wrap;}
-  .overlay-url-item{flex:1 1 0;min-width:150px;}
-  .overlay-url-item .tlink:first-child{flex:1;}
   .main{grid-template-columns:1fr;}
   .draft-inner{grid-template-columns:1fr;align-items:stretch;}
 }
@@ -184,32 +201,29 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
   <div class="match-inputs">
     <input id="tournamentName" value="ROV Tournament" placeholder="Tournament">
     <input id="matchTitle" value="BLUE VS RED" placeholder="Match Title">
-    <button class="tlink" onclick="updateMatchInfo()">SAVE</button>
+    <span class="save-state" id="matchInfoSaved">Auto-saves</span>
   </div>
-  <div class="preset-tools">
-    <input id="presetName" placeholder="Preset name">
-    <select id="presetList"><option value="">Preset</option></select>
-    <button class="tlink" onclick="savePreset()">SAVE PRESET</button>
-    <button class="tlink" onclick="loadPreset()">LOAD</button>
-  </div>
-  <div class="topbar-links">
+  <!-- Live switches: the two things changed mid-broadcast. Kept together and
+       apart from navigation so a page link is never next to an on-air control. -->
+  <div class="live-switches">
     <div class="size-switch" role="group" aria-label="Overlay size">
       <span class="size-switch-label">SIZE</span>
       <button class="size-btn" type="button" id="sizeBtn1080" onclick="setOverlaySize('1080')" title="Set every overlay and result screen to 1920x1080">1080p</button>
       <button class="size-btn" type="button" id="sizeBtn1440" onclick="setOverlaySize('1440')" title="Set every overlay and result screen to 2560x1440">1440p</button>
     </div>
-    <div class="overlay-link-group">
-      <div class="overlay-url-item">
-        <a class="tlink" href="/overlay" target="_blank">OVERLAY</a>
-        <button class="tlink copy-url-btn" type="button" onclick="copyOverlayUrl('/overlay')" title="Copy Overlay URL" aria-label="Copy Overlay URL">&#10697;</button>
-      </div>
-      <div class="overlay-url-item">
-        <a class="tlink" href="/result" target="_blank">RESULT</a>
-        <button class="tlink copy-url-btn" type="button" onclick="copyOverlayUrl('/result')" title="Copy Result URL" aria-label="Copy Result URL">&#10697;</button>
-      </div>
+    <div class="size-switch" role="group" aria-label="Overlay on air">
+      <span class="size-switch-label">BANNER</span>
+      <button class="size-btn" type="button" id="overlayShowBtn" onclick="setOverlayVisible(true)" title="Show the overlay banner on air (tap Alt)">SHOW</button>
+      <button class="size-btn hide-btn" type="button" id="overlayHideBtn" onclick="setOverlayVisible(false)" title="Fade the overlay banner out for clean gameplay (tap Alt)">HIDE</button>
     </div>
-    <a class="tlink design-link" href="/design">DESIGN</a>
   </div>
+  <nav class="topnav" aria-label="Pages">
+    <a class="tlink" href="/">HOME</a>
+    <a class="tlink active" href="/control" aria-current="page">CONTROL</a>
+    <a class="tlink" href="/presets">PRESETS</a>
+    <a class="tlink" href="/design">DESIGN</a>
+    <a class="tlink" href="/hotkeys">HOTKEYS</a>
+  </nav>
 </div>
 
 <!-- MAIN -->
@@ -228,7 +242,18 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
     <div class="panel-body">
       <div class="team-meta">
         <div class="field"><label>Team Name</label><input id="blueTeamName" value="BLUE"></div>
-        <button class="bbtn primary" onclick="updateTeam('teamBlue')">SAVE</button>
+        <span class="save-state" id="blueSaved">Auto-saves</span>
+      </div>
+      <div class="logo-row">
+        <div class="logo-preview" id="blueLogoPreview">184 × 184</div>
+        <div class="logo-actions">
+          <label>Team Logo</label>
+          <div class="logo-buttons">
+            <input type="file" id="blueLogoFile" accept="image/png,image/jpeg,image/webp" hidden>
+            <button class="tlink" type="button" onclick="pickTeamLogo('teamBlue')">UPLOAD</button>
+            <button class="tlink danger" type="button" onclick="clearTeamLogo('teamBlue')">CLEAR</button>
+          </div>
+        </div>
       </div>
       <table class="pp-table">
         <thead><tr>
@@ -260,7 +285,18 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
     <div class="panel-body">
       <div class="team-meta">
         <div class="field"><label>Team Name</label><input id="redTeamName" value="RED"></div>
-        <button class="bbtn primary" onclick="updateTeam('teamRed')">SAVE</button>
+        <span class="save-state" id="redSaved">Auto-saves</span>
+      </div>
+      <div class="logo-row">
+        <div class="logo-preview" id="redLogoPreview">184 × 184</div>
+        <div class="logo-actions">
+          <label>Team Logo</label>
+          <div class="logo-buttons">
+            <input type="file" id="redLogoFile" accept="image/png,image/jpeg,image/webp" hidden>
+            <button class="tlink" type="button" onclick="pickTeamLogo('teamRed')">UPLOAD</button>
+            <button class="tlink danger" type="button" onclick="clearTeamLogo('teamRed')">CLEAR</button>
+          </div>
+        </div>
       </div>
       <table class="pp-table">
         <thead><tr>
@@ -311,25 +347,37 @@ body{font-family:var(--bf);background:var(--bg);color:var(--text);min-height:100
 
 <!-- BOTTOM BAR -->
 <div class="bottom-bar">
+  <!-- Routine actions first, then one separator, then the two that throw work
+       away. RESET MATCH was styled neutral next to SWITCH TEAMS despite wiping
+       the whole match - it now reads as destructive, like the button beside it. -->
   <button class="bbtn primary" onclick="undoLast()" title="Undo last pick / ban (Ctrl+Z)">&#8630; UNDO</button>
-  <div class="bb-sep"></div>
   <button class="bbtn neutral" onclick="switchTeams()">SWITCH TEAMS</button>
   <div class="bb-sep"></div>
-  <button class="bbtn neutral" onclick="resetMatchState()">RESET MATCH</button>
-  <button class="bbtn danger" onclick="clearAll()">CLEAR PICKS &amp; BANS</button>
-  <div class="kbd-hint">
-    <span><b>Enter</b> confirm hero</span>
-    <span><b>Esc</b> leave box</span>
-    <span><b>Space</b> pause</span>
-    <span><b>&#8592; &#8594;</b> phase</span>
-    <span><b>Ctrl+Z</b> undo</span>
-  </div>
+  <button class="bbtn danger-soft" onclick="resetMatchState()" title="Clear the whole match back to an empty state">RESET MATCH</button>
+  <button class="bbtn danger" onclick="clearAll()" title="Clear every pick and ban, keeping teams and score">CLEAR PICKS &amp; BANS</button>
+  <div class="kbd-hint" id="kbdHint"></div>
   <div class="bb-status" id="bb_status">Ready</div>
+</div>
+
+<!-- Confirmation for the two destructive bottom-bar actions.
+     In-page rather than window.confirm(): the native dialog is modal to the
+     whole renderer in Electron and can leave the window unable to take
+     keyboard input after it closes. Same dialog as the Presets page. -->
+<div class="modal-backdrop" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" hidden>
+  <div class="modal">
+    <div class="modal-title" id="confirmTitle"></div>
+    <div class="modal-body" id="confirmBody"></div>
+    <div class="modal-actions">
+      <button class="bbtn neutral" type="button" id="confirmCancel">CANCEL</button>
+      <button class="bbtn danger" type="button" id="confirmOk">CONFIRM</button>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast_el"></div>
 
 <script src="/socket.io/socket.io.js"></script>
+<script src="js/hotkey-utils.js"></script>
 <script src="js/control.js"></script>
 </body>
 </html>

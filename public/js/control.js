@@ -6,7 +6,9 @@ const socket = io({ auth: { token: controlToken }, query: controlToken ? { token
 
 let heroes = [];
 let draftSequence = [];
-let presetNames = [];
+// เริ่มด้วยค่า default ไว้ก่อน state จาก server จะมาถึง กด F5 แล้วรีบกดคีย์ลัด
+// ยังใช้ได้ทันที ไม่ต้องรอ socket
+let hotkeys = { ...window.HotkeyUtils.DEFAULTS };
 let latestState = null;
 let uiBuilt = false;
 let swPl = null;
@@ -26,26 +28,25 @@ socket.on('stateUpdate', (state) => {
   }
 });
 
+// พรีเซ็ตย้ายไปหน้า /presets แล้ว หน้านี้จึงไม่ต้องโหลดรายการมาอีก
 async function boot() {
-  const [heroesResult, draftResult, presetsResult, stateResult] = await Promise.allSettled([
+  const [heroesResult, draftResult, stateResult] = await Promise.allSettled([
     fetchJson('/api/heroes'),
     fetchJson('/api/draft-sequence'),
-    fetchJson('/api/presets'),
     fetchJson('/api/state')
   ]);
 
   heroes = valueOf(heroesResult)?.heroes || [];
   draftSequence = valueOf(draftResult)?.sequence || [];
-  presetNames = valueOf(presetsResult)?.presets || [];
   latestState = valueOf(stateResult) || latestState;
 
-  const failedLoad = [heroesResult, draftResult, presetsResult, stateResult]
+  const failedLoad = [heroesResult, draftResult, stateResult]
     .find((result) => result.status === 'rejected');
   if (failedLoad) showToast(failedLoad.reason?.message || 'Control data failed to load', 'red');
 
   buildAllUI();
   uiBuilt = true;
-  renderPresetList();
+  bindLogoInputs();
 
   if (latestState) {
     loadState(latestState);
@@ -76,6 +77,98 @@ function overlayUrl(path) {
   const url = new URL(path, window.location.origin);
   if (controlToken) url.searchParams.set('token', controlToken);
   return url.toString();
+}
+
+// TEAM LOGOS ---------------------------------------------------------
+// Uploads the raw file with its own content-type, same shape as the skin
+// uploader on the design page. The server checks the magic bytes and
+// names the file itself, so nothing user-typed reaches the filesystem.
+const LOGO_UI = {
+  teamBlue: { file: 'blueLogoFile', preview: 'blueLogoPreview' },
+  teamRed: { file: 'redLogoFile', preview: 'redLogoPreview' }
+};
+const LOGO_FILES = { teamBlue: 'blue-team', teamRed: 'red-team' };
+const LOGO_MAX_BYTES = 4 * 1024 * 1024;
+
+// ขนาดที่ overlay วาดจริง: 138px ตอน 1080p และ 184px ตอน 1440p
+// (ทั้งแถบถูกขยาย 4/3) บอกเลข 1440p เพราะย่อลงมาที่ 138 ได้คมกว่า
+// ถ้าแก้ .team-logo-score ใน overlay.css อย่าลืมแก้ตรงนี้ด้วย
+const LOGO_DRAW_PX = 184;
+const LOGO_SIZE_HINT = `${LOGO_DRAW_PX} × ${LOGO_DRAW_PX}`;
+const LOGO_SIZE_TITLE =
+  `Square PNG, JPG or WEBP. Drawn at ${LOGO_DRAW_PX}×${LOGO_DRAW_PX} on 2560x1440 ` +
+  `and 108×108 on 1920x1080, so ${LOGO_DRAW_PX}px or larger stays sharp on both.`;
+
+function pickTeamLogo(team) {
+  const input = document.getElementById(LOGO_UI[team]?.file);
+  if (input) input.click();
+}
+
+async function uploadTeamLogo(team, file) {
+  if (file.size > LOGO_MAX_BYTES) {
+    showToast('Logo must be under 4 MB', 'red');
+    return;
+  }
+  try {
+    const response = await fetch(withToken(`/api/team-logo/${team}`), {
+      method: 'POST',
+      headers: {
+        'Content-Type': file.type,
+        ...(controlToken ? { Authorization: `Bearer ${controlToken}` } : {})
+      },
+      body: file
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || response.statusText);
+    showToast('Logo uploaded', 'green');
+  } catch (error) {
+    showToast(error.message || 'Upload failed', 'red');
+  }
+}
+
+async function clearTeamLogo(team) {
+  try {
+    const response = await fetch(withToken(`/api/team-logo/${team}`), {
+      method: 'DELETE',
+      headers: controlToken ? { Authorization: `Bearer ${controlToken}` } : {}
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || response.statusText);
+    showToast('Logo cleared', 'red');
+  } catch (error) {
+    showToast(error.message || 'Clear failed', 'red');
+  }
+}
+
+function bindLogoInputs() {
+  Object.entries(LOGO_UI).forEach(([team, ids]) => {
+    const input = document.getElementById(ids.file);
+    if (!input) return;
+    input.addEventListener('change', () => {
+      if (input.files[0]) uploadTeamLogo(team, input.files[0]);
+      input.value = ''; // ให้เลือกไฟล์เดิมซ้ำได้
+    });
+  });
+}
+
+function renderTeamLogo(team, logo) {
+  const preview = document.getElementById(LOGO_UI[team]?.preview);
+  if (!preview) return;
+  const version = logo?.v || 0;
+  const ext = logo?.ext || '';
+
+  preview.title = LOGO_SIZE_TITLE;
+
+  if (!version || !ext) {
+    preview.style.backgroundImage = '';
+    preview.classList.remove('filled');
+    preview.textContent = LOGO_SIZE_HINT;
+    return;
+  }
+  preview.textContent = '';
+  preview.classList.add('filled');
+  preview.style.backgroundImage =
+    `url("images/team-logos/${LOGO_FILES[team]}.${ext}?v=${version}")`;
 }
 
 async function copyOverlayUrl(path) {
@@ -133,7 +226,15 @@ function ensureDropdown() {
 
   // It is placed at page coordinates, so anything that moves the input out
   // from under it must dismiss it rather than leave it floating.
-  window.addEventListener('scroll', closeDropdown, true);
+  //
+  // Capture phase means this also sees scrolls INSIDE the list, and the list
+  // is taller than its box on purpose - so the first wheel tick was closing
+  // the very thing you were trying to scroll. Scrolls that start inside it
+  // move nothing out from under anything, so they are ignored.
+  window.addEventListener('scroll', (event) => {
+    if (ddEl && event.target instanceof Node && ddEl.contains(event.target)) return;
+    closeDropdown();
+  }, true);
   window.addEventListener('resize', closeDropdown);
 
   return ddEl;
@@ -364,21 +465,14 @@ function buildBans(color) {
   }
 }
 
-function renderPresetList() {
-  const select = document.getElementById('presetList');
-  if (!select) return;
-  const current = select.value;
-  select.textContent = '';
-  select.appendChild(new Option('-- Preset --', ''));
-  presetNames.forEach((name) => select.appendChild(new Option(name, name)));
-  if (presetNames.includes(current)) select.value = current;
-}
-
 function loadState(state) {
   if (state.matchInfo) {
     setVal('tournamentName', state.matchInfo.tournament || '');
     setVal('matchTitle', state.matchInfo.title || '');
   }
+
+  renderTeamLogo('teamBlue', state.teamBlue.logo);
+  renderTeamLogo('teamRed', state.teamRed.logo);
 
   setVal('blueTeamName', state.teamBlue.name);
   setVal('blueScore', state.teamBlue.score);
@@ -395,6 +489,37 @@ function loadState(state) {
   const td = document.getElementById('timerDisplay');
   if (td && state.draftLabel !== 'coming soon') td.textContent = state.timer || '--';
   renderOverlaySize(state.overlaySize);
+  renderOverlayVisible(state.overlayVisible);
+  applyHotkeys(state.hotkeys);
+}
+
+// แถบคำใบ้ท้ายหน้าเคยเป็นข้อความตายตัวใน HTML พอคีย์ลัดตั้งค่าได้แล้ว
+// มันจะโกหกทันทีที่ผู้ใช้เปลี่ยนปุ่ม จึงวาดจากค่าจริงแทน
+function applyHotkeys(next) {
+  if (next && typeof next === 'object') {
+    hotkeys = { ...window.HotkeyUtils.DEFAULTS, ...next };
+  }
+  renderHotkeyHints();
+}
+
+function renderHotkeyHints() {
+  const wrap = document.getElementById('kbdHint');
+  if (!wrap) return;
+  const { ACTIONS, bindingLabel } = window.HotkeyUtils;
+
+  const hints = [
+    ['Enter', 'confirm hero'],
+    ['Esc', 'leave box']
+  ].concat(ACTIONS.map((action) => [bindingLabel(hotkeys[action.key]), action.short]));
+
+  wrap.textContent = '';
+  hints.forEach(([keyText, label]) => {
+    const span = document.createElement('span');
+    const b = document.createElement('b');
+    b.textContent = keyText;
+    span.append(b, document.createTextNode(` ${label}`));
+    wrap.appendChild(span);
+  });
 }
 
 function setVal(id, val) {
@@ -469,17 +594,75 @@ function emitPlayerName(team, index, name) {
   socket.emit('updatePlayerName', { team, index, name });
 }
 
-function updateTeam(team) {
-  const color = team === 'teamBlue' ? 'blue' : 'red';
-  socket.emit('updateTeamName', { team, name: document.getElementById(`${color}TeamName`).value });
-  socket.emit('updateScore', { team, score: parseInt(document.getElementById(`${color}Score`).value, 10) || 0 });
+// AUTO-SAVE -----------------------------------------------------------
+// ไม่มีปุ่ม SAVE แล้ว ทุกช่องเซฟเองหลังหยุดพิมพ์
+//
+// หน่วงไว้ก่อนส่ง ไม่งั้นพิมพ์ทีละตัวอักษรก็ยิง event ทุกครั้ง
+// ชื่อทีมโผล่บน overlay สดๆ อยู่แล้ว การเห็นตัวอักษรค่อยๆ ขึ้นทีละตัว
+// ระหว่างพิมพ์ไม่ใช่สิ่งที่อยากให้ออกอากาศ
+//
+// ปุ่มเดิมเซฟชื่อทีม + สกอร์ + ชื่อผู้เล่นพร้อมกัน ตอนนี้แต่ละช่องเซฟของ
+// ตัวเอง ถ้าเซฟแค่ชื่อทีมแล้วเอาปุ่มออก สกอร์กับผู้เล่นจะไม่มีทางถูกบันทึก
+const AUTOSAVE_DELAY = 450;
+const autosaveTimers = new Map();
 
-  for (let i = 0; i < 5; i++) {
-    const value = document.getElementById(`${color}Player${i}`)?.value;
-    if (value !== undefined) socket.emit('updatePlayerName', { team, index: i, name: value });
-  }
-  showToast(`${color === 'blue' ? 'Blue' : 'Red'} team saved`, 'blue');
+function autosave(key, indicatorId, send) {
+  clearTimeout(autosaveTimers.get(key));
+  autosaveTimers.set(key, setTimeout(() => {
+    send();
+    flashSaved(indicatorId);
+  }, AUTOSAVE_DELAY));
 }
+
+function flashSaved(indicatorId) {
+  const el = document.getElementById(indicatorId);
+  if (!el) return;
+  el.textContent = 'Saved';
+  el.classList.add('saved');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => {
+    el.textContent = 'Auto-saves';
+    el.classList.remove('saved');
+  }, 1400);
+}
+
+// ผูกแบบ delegate เพราะแถวผู้เล่นถูกสร้างด้วย JS ทีหลัง
+document.addEventListener('input', (event) => {
+  const el = event.target;
+  if (!el.id) return;
+
+  if (el.id === 'tournamentName' || el.id === 'matchTitle') {
+    autosave('matchInfo', 'matchInfoSaved', () => socket.emit('updateMatchInfo', {
+      tournament: document.getElementById('tournamentName').value,
+      title: document.getElementById('matchTitle').value
+    }));
+    return;
+  }
+
+  const name = /^(blue|red)TeamName$/.exec(el.id);
+  if (name) {
+    const team = name[1] === 'blue' ? 'teamBlue' : 'teamRed';
+    autosave(el.id, `${name[1]}Saved`, () => socket.emit('updateTeamName', { team, name: el.value }));
+    return;
+  }
+
+  const player = /^(blue|red)Player([0-4])$/.exec(el.id);
+  if (player) {
+    const team = player[1] === 'blue' ? 'teamBlue' : 'teamRed';
+    autosave(el.id, `${player[1]}Saved`, () => socket.emit('updatePlayerName', {
+      team, index: Number(player[2]), name: el.value
+    }));
+    return;
+  }
+
+  const score = /^(blue|red)Score$/.exec(el.id);
+  if (score) {
+    const team = score[1] === 'blue' ? 'teamBlue' : 'teamRed';
+    autosave(el.id, `${score[1]}Saved`, () => socket.emit('updateScore', {
+      team, score: parseInt(el.value, 10) || 0
+    }));
+  }
+});
 
 function setOverlaySize(size) {
   socket.emit('updateOverlaySize', { size });
@@ -492,20 +675,78 @@ function renderOverlaySize(size) {
   document.getElementById('sizeBtn1440')?.classList.toggle('active', active === '1440');
 }
 
-function updateMatchInfo() {
-  socket.emit('updateMatchInfo', {
-    tournament: document.getElementById('tournamentName').value,
-    title: document.getElementById('matchTitle').value
-  });
-  showToast('Match info saved', 'blue');
+// visible = true/false สั่งตรงๆ, ไม่ส่งค่า = ให้ server สลับให้
+// ปุ่มรู้อยู่แล้วว่าจะเอาสถานะไหน ส่วนคีย์ H ไม่ส่ง จะได้ไม่พลาดถ้า
+// หน้านี้เห็น state ไม่ตรงกับเครื่องอื่นที่เปิด control อยู่
+function setOverlayVisible(visible) {
+  socket.emit('setOverlayVisible', typeof visible === 'boolean' ? { visible } : {});
 }
+
+// null = ยังไม่รู้สถานะแรก จะได้ไม่เด้ง toast ตอนเพิ่งเปิดหน้า
+let lastOverlayVisible = null;
+
+// แจ้งเตือนจากตรงนี้ที่เดียว ไม่ใช่ตอนกดปุ่ม เพราะคีย์ลัดให้ server สลับให้
+// ค่าจริงจึงรู้ตอน state กลับมาเท่านั้น และวิธีนี้ครอบคลุมกรณีที่อีกเครื่อง
+// เป็นคนสั่งด้วย
+function renderOverlayVisible(visible) {
+  const on = visible !== false;
+  document.getElementById('overlayShowBtn')?.classList.toggle('active', on);
+  document.getElementById('overlayHideBtn')?.classList.toggle('active', !on);
+
+  if (lastOverlayVisible !== null && lastOverlayVisible !== on) {
+    showToast(on ? 'Overlay on air' : 'Overlay hidden', on ? 'green' : 'red');
+  }
+  lastOverlayVisible = on;
+}
+
 
 function switchTeams() {
   socket.emit('switchTeams');
   showToast('Teams switched', 'blue');
 }
 
-function clearAll() {
+// CONFIRM DIALOG ------------------------------------------------------
+// เหมือนหน้า Presets ไม่ใช้ window.confirm() เพราะใน Electron dialog ของ
+// ระบบเป็น modal ของทั้ง renderer ปิดแล้วหน้าต่างรับคีย์บอร์ดไม่ได้
+let confirmResolve = null;
+
+function askConfirm({ title, body, confirmLabel = 'CONFIRM' }) {
+  const modal = document.getElementById('confirmModal');
+  const okBtn = document.getElementById('confirmOk');
+  if (!modal || !okBtn) return Promise.resolve(false); // ไม่มี modal ก็อย่าเผลอล้าง
+
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmBody').textContent = body;
+  okBtn.textContent = confirmLabel;
+
+  const previousFocus = document.activeElement;
+  modal.hidden = false;
+  okBtn.focus();
+
+  return new Promise((resolve) => {
+    confirmResolve = (answer) => {
+      modal.hidden = true;
+      confirmResolve = null;
+      if (previousFocus && document.contains(previousFocus)) previousFocus.focus();
+      resolve(answer);
+    };
+  });
+}
+
+document.getElementById('confirmOk')?.addEventListener('click', () => confirmResolve?.(true));
+document.getElementById('confirmCancel')?.addEventListener('click', () => confirmResolve?.(false));
+document.getElementById('confirmModal')?.addEventListener('mousedown', (event) => {
+  if (event.target.id === 'confirmModal') confirmResolve?.(false);
+});
+
+// ล้างดราฟต์ทั้งหมด กู้คืนไม่ได้ (Ctrl+Z ย้อนได้ทีละช่องเท่านั้น)
+async function clearAll() {
+  const ok = await askConfirm({
+    title: 'Clear picks and bans',
+    body: 'Clear every pick and ban for both teams? Team names, players and score are kept. This cannot be undone.',
+    confirmLabel: 'CLEAR'
+  });
+  if (!ok) return;
   socket.emit('clearAll');
   showToast('All picks and bans cleared', 'red');
 }
@@ -674,9 +915,23 @@ function shortcutsAllowed() {
 // Shortcuts stay out of the way while the operator is typing a name.
 // Press Escape to leave a hero box, then Space / arrows work.
 document.addEventListener('keydown', (event) => {
-  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+  // ตอนกล่องยืนยันเปิดอยู่ คีย์ลัดต้องไม่ทำงาน ไม่งั้นกด H หรือ Space
+  // ระหว่างถามยืนยัน จะไปสั่งซ่อนแถบหรือหยุดเวลาโดยไม่ตั้งใจ
+  if (confirmResolve) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      confirmResolve(false);
+    }
+    event.stopPropagation();
+    return;
+  }
+
+  const { matchesBinding } = window.HotkeyUtils;
+
+  // Undo ถูกเช็คก่อน shortcutsAllowed() เพราะต้องใช้ได้ระหว่างเคอร์เซอร์
+  // อยู่ในช่องด้วย แต่ถ้าในช่องมีข้อความอยู่ ให้เป็น undo ของการพิมพ์แทน
+  if (matchesBinding(event, hotkeys.undo)) {
     const el = document.activeElement;
-    // Inside a box with text, Ctrl+Z should undo the typing, not the draft.
     if (isTypingField(el) && el.value) return;
     event.preventDefault();
     undoLast();
@@ -685,23 +940,67 @@ document.addEventListener('keydown', (event) => {
 
   if (!shortcutsAllowed()) return;
 
-  if (event.code === 'Space') {
+  // ถ้าผู้ใช้ตั้งสลับแถบเป็นปุ่มธรรมดา จะมาเข้าทางนี้
+  // ถ้าตั้งเป็น modifier ล้วน matchesBinding คืน false แล้วไปเข้าทาง keyup แทน
+  if (matchesBinding(event, hotkeys.toggleBanner)) {
+    event.preventDefault();
+    setOverlayVisible();
+    return;
+  }
+
+  if (matchesBinding(event, hotkeys.pauseResume)) {
     event.preventDefault();
     if (latestState?.draftRunning) draftPause(); else draftResume();
     return;
   }
 
-  if (event.key === 'ArrowRight') {
+  if (matchesBinding(event, hotkeys.nextPhase)) {
     event.preventDefault();
     draftNext();
     return;
   }
 
-  if (event.key === 'ArrowLeft') {
+  if (matchesBinding(event, hotkeys.prevPhase)) {
     event.preventDefault();
     draftPrev();
   }
 });
+
+// คีย์ลัดแบบ "แตะ modifier เดี่ยวๆ" (ค่าเริ่มต้นของสลับแถบ overlay คือ Alt)
+//
+// ปุ่ม modifier ดักตอน keydown ตรงๆ ไม่ได้ Alt+Tab กับ Alt+F4 ก็ยิง keydown
+// ของ Alt เหมือนกัน แถบจะหายเองตอนสลับหน้าต่าง จึงนับเฉพาะกดแล้วปล่อย
+// โดยไม่มีปุ่มอื่นคั่น
+//
+// ตอนนี้ผูกกับ hotkeys.toggleBanner ถ้าผู้ใช้ตั้งเป็นปุ่มธรรมดา
+// จะไปเข้าทาง matchesBinding ใน keydown ด้านบนแทน ตรงนี้ไม่ทำงาน
+let tapArmedCode = null;
+
+document.addEventListener('keydown', (event) => {
+  const { MODIFIER_CODES } = window.HotkeyUtils;
+  if (MODIFIER_CODES.includes(event.key)) {
+    if (!event.repeat) tapArmedCode = event.key; // กดค้างซ้ำๆ ไม่ยกเลิก
+    return;
+  }
+  tapArmedCode = null; // มีปุ่มอื่นตามมา = เป็นคีย์ผสม ไม่ใช่การแตะ
+});
+
+document.addEventListener('keyup', (event) => {
+  const { isModifierBinding } = window.HotkeyUtils;
+  const binding = hotkeys.toggleBanner;
+  if (!isModifierBinding(binding)) return;
+  if (event.key !== binding.code || tapArmedCode !== binding.code) return;
+
+  tapArmedCode = null;
+  if (confirmResolve) return;       // กล่องยืนยันเปิดอยู่
+  if (!shortcutsAllowed()) return;  // กำลังพิมพ์ในช่องอยู่
+  event.preventDefault();           // กัน Alt ไปโฟกัสแถบเมนูของหน้าต่าง
+  setOverlayVisible();
+});
+
+// สลับหน้าต่างด้วย Alt+Tab แล้ว keyup ของ Alt อาจไม่กลับมาที่หน้านี้
+// ถ้าไม่ล้างค่า การแตะครั้งถัดไปจะถูกนับต่อจากของเก่า
+window.addEventListener('blur', () => { tapArmedCode = null; });
 
 function draftStart() { socket.emit('draftStart'); showToast('Draft started', 'green'); }
 function draftPause() { socket.emit('draftPause'); showToast('Paused'); }
@@ -710,90 +1009,16 @@ function draftNext() { socket.emit('draftNext'); }
 function draftPrev() { socket.emit('draftPrev'); }
 function draftReset() { socket.emit('draftReset'); showToast('Timer reset', 'red'); }
 
-async function refreshPresets() {
-  try {
-    presetNames = (await fetchJson('/api/presets')).presets || [];
-    renderPresetList();
-  } catch (error) {
-    showToast(error.message, 'red');
-  }
-}
 
-async function savePreset() {
-  const input = document.getElementById('presetName');
-  const name = input?.value.trim();
-  if (!name) {
-    showToast('Preset name required', 'red');
-    return;
-  }
-  try {
-    const data = await fetchJson('/api/presets', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, state: collectCurrentState() })
-    });
-    presetNames = data.presets || [];
-    renderPresetList();
-    const list = document.getElementById('presetList');
-    if (list) list.value = name;
-    showToast('Preset saved', 'green');
-  } catch (error) {
-    showToast(error.message, 'red');
-  }
-}
-
-function collectCurrentState() {
-  const state = latestState ? JSON.parse(JSON.stringify(latestState)) : {};
-  state.matchInfo = {
-    tournament: document.getElementById('tournamentName')?.value || '',
-    title: document.getElementById('matchTitle')?.value || ''
-  };
-  state.teamBlue = collectTeamState('blue', state.teamBlue);
-  state.teamRed = collectTeamState('red', state.teamRed);
-  return state;
-}
-
-function collectTeamState(color, fallback = {}) {
-  return {
-    ...fallback,
-    name: document.getElementById(`${color}TeamName`)?.value || fallback.name || '',
-    score: parseInt(document.getElementById(`${color}Score`)?.value, 10) || 0,
-    players: Array.from({ length: 5 }, (_, index) => (
-      document.getElementById(`${color}Player${index}`)?.value || ''
-    )),
-    picks: Array.from({ length: 5 }, (_, index) => (
-      normalizeHeroInput(document.getElementById(`${color}Pick${index}`)?.value) || null
-    )),
-    bans: Array.from({ length: 4 }, (_, index) => (
-      normalizeHeroInput(document.getElementById(`${color}Ban${index}`)?.value) || null
-    ))
-  };
-}
-
-async function loadPreset() {
-  const name = document.getElementById('presetList')?.value;
-  if (!name) {
-    showToast('Choose a preset', 'red');
-    return;
-  }
-  try {
-    const data = await fetchJson('/api/presets/load', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name })
-    });
-    if (data.state) {
-      latestState = data.state;
-      loadState(data.state);
-      updateDraftUI(data.state);
-    }
-    showToast('Preset loaded', 'green');
-  } catch (error) {
-    showToast(error.message, 'red');
-  }
-}
-
+// ล้างทั้งแมตช์ ชื่อทีม ผู้เล่น สกอร์ ดราฟต์ หายหมด
 async function resetMatchState() {
+  const ok = await askConfirm({
+    title: 'Reset match',
+    body: 'Reset the whole match? Team names, players, score, picks and bans all go back to empty. This cannot be undone.',
+    confirmLabel: 'RESET'
+  });
+  if (!ok) return;
+
   try {
     const data = await fetchJson('/api/reset-state', { method: 'POST' });
     if (data.state) {
