@@ -20,7 +20,7 @@ ROV Pick/Ban Overlay Tool คือแอพสำหรับทำหน้า
 แบบติดตั้ง มี shortcut บน Desktop:
 
 ```text
-ROV.Overlay.Tool.Setup.1.0.0.exe
+ROV.Overlay.Tool.Setup.1.1.0.exe
 ```
 
 หรือแบบพกพา เปิดใช้ได้ทันที ไม่ต้องติดตั้ง:
