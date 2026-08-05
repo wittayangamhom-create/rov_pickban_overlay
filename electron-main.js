@@ -117,6 +117,8 @@ async function startServerIfNeeded() {
 
   serverStartedByApp = true;
   process.env.ROV_USER_DATA_DIR = path.join(app.getPath('userData'), 'data');
+  // ภาพที่อัปโหลดต้องอยู่นอก app.asar ไม่งั้นเขียนไม่ได้ (ENOTDIR)
+  process.env.ROV_USER_MEDIA_DIR = path.join(app.getPath('userData'), 'media');
   require(path.join(__dirname, 'server.js'));
   await waitForServer();
 }

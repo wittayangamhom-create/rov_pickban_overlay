@@ -17,6 +17,15 @@ const STATE_PATH = path.join(DATA_DIR, 'state.json');
 const PRESETS_PATH = path.join(DATA_DIR, 'presets.json');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
+// ที่เก็บภาพที่ผู้ใช้อัปโหลด (โลโก้ทีม + ภาพพื้นหลัง)
+//
+// ตอนแพ็กเป็น .exe โค้ดทั้งก้อนอยู่ใน app.asar ซึ่งเป็น "ไฟล์" ไม่ใช่โฟลเดอร์
+// เขียนไฟล์ลง __dirname/public/... จึงพังด้วย ENOTDIR
+// เหมือนกับ state/presets ที่ย้ายไป ROV_USER_DATA_DIR ภาพก็ต้องออกมาอยู่นอก
+// asar เช่นกัน ตอนรันจาก source (ไม่ได้ตั้ง env) ใช้ public/images ตามเดิม
+// ของเก่าที่มีอยู่แล้วจะได้ยังใช้ได้
+const USER_MEDIA_DIR = process.env.ROV_USER_MEDIA_DIR || path.join(PUBLIC_DIR, 'images');
+
 function isAllowedOrigin(origin, callback) {
   if (!origin) return callback(null, true);
 
@@ -43,6 +52,13 @@ const io = socketIO(server, {
 
 app.use(cors({ origin: isAllowedOrigin }));
 app.use(express.json({ limit: '64kb' }));
+
+// ภาพที่ผู้ใช้อัปโหลดต้องมาก่อน static ของ public
+// URL ยังเป็น /images/team-logos/... กับ /images/skins/... เหมือนเดิม
+// หน้าเว็บจึงไม่ต้องรู้ว่าไฟล์จริงย้ายออกไปนอก asar แล้ว
+app.use('/images/team-logos', express.static(path.join(USER_MEDIA_DIR, 'team-logos')));
+app.use('/images/skins', express.static(path.join(USER_MEDIA_DIR, 'skins')));
+
 app.use(express.static(PUBLIC_DIR));
 
 const HERO_IMAGE_DIR = path.join(PUBLIC_DIR, 'images', 'heroes');
@@ -88,14 +104,14 @@ const SKIN_SLOTS = {
   resultBottom1080: 'result-bottom-1080',
   resultBottom1440: 'result-bottom-1440'
 };
-const SKIN_DIR = path.join(__dirname, 'public', 'images', 'skins');
+const SKIN_DIR = path.join(USER_MEDIA_DIR, 'skins');
 const SKIN_MAX_BYTES = 8 * 1024 * 1024;
 const SKIN_TYPES = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
 
 // โลโก้ทีม แยกจาก skin เพราะผูกกับทีม ไม่ได้ผูกกับขนาดจอ
 // ชื่อไฟล์มาจากตารางนี้เท่านั้น ไม่เอาค่าจากผู้ใช้มาต่อ path
 const LOGO_SLOTS = { teamBlue: 'blue-team', teamRed: 'red-team' };
-const LOGO_DIR = path.join(PUBLIC_DIR, 'images', 'team-logos');
+const LOGO_DIR = path.join(USER_MEDIA_DIR, 'team-logos');
 const LOGO_MAX_BYTES = 4 * 1024 * 1024;
 
 // ธีมของ overlay ทุกค่าตรงกับ CSS custom property ใน overlay.css
