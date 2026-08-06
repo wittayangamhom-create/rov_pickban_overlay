@@ -1,7 +1,8 @@
-const test = require('node:test');
-const assert = require('node:assert');
-const path = require('path');
-const {
+import test from 'node:test';
+import assert from 'node:assert';
+import path from 'path';
+import type { SkinSlot, LogoSlot } from '../server/domain/media';
+import {
   SKIN_SLOTS,
   LOGO_SLOTS,
   SKIN_DIR,
@@ -13,7 +14,7 @@ const {
   logoFilePath,
   sanitizeLogo,
   sanitizeSkin
-} = require('../server/domain/media');
+} from '../server/domain/media';
 
 test('magic byte checks accept the right headers and reject mismatches', () => {
   const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(16)]);
@@ -31,13 +32,13 @@ test('magic byte checks accept the right headers and reject mismatches', () => {
 });
 
 test('skin and logo paths never escape their directory', () => {
-  Object.keys(SKIN_SLOTS).forEach((slot) => {
+  (Object.keys(SKIN_SLOTS) as SkinSlot[]).forEach((slot) => {
     Object.values(SKIN_TYPES).forEach((ext) => {
       const full = path.resolve(skinFilePath(slot, ext));
       assert.ok(full.startsWith(path.resolve(SKIN_DIR)), `${slot} stays inside the skin dir`);
     });
   });
-  Object.keys(LOGO_SLOTS).forEach((team) => {
+  (Object.keys(LOGO_SLOTS) as LogoSlot[]).forEach((team) => {
     Object.values(SKIN_TYPES).forEach((ext) => {
       const full = path.resolve(logoFilePath(team, ext));
       assert.ok(full.startsWith(path.resolve(LOGO_DIR)), `${team} stays inside the logo dir`);
@@ -69,8 +70,9 @@ test('sanitizeSkin always returns every known slot', () => {
   const skin = sanitizeSkin({ enabled: true, slots: { overlayTop1080: 5, bogus: 9 } });
   assert.strictEqual(skin.enabled, true);
   assert.strictEqual(skin.showPanels, true);
-  assert.strictEqual(skin.bogus, undefined);
-  Object.keys(SKIN_SLOTS).forEach((slot) => {
+  // ช่องที่ไม่รู้จักต้องไม่รอดออกมา อ่านผ่าน Record เพราะมันไม่มีในชนิด Skin
+  assert.strictEqual((skin.slots as unknown as Record<string, unknown>).bogus, undefined);
+  (Object.keys(SKIN_SLOTS) as SkinSlot[]).forEach((slot) => {
     assert.strictEqual(typeof skin.slots[slot], 'number', `${slot} present`);
   });
   assert.strictEqual(skin.slots.overlayTop1080, 5);

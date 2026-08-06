@@ -1,6 +1,6 @@
-const test = require('node:test');
-const assert = require('node:assert');
-const { clampNumber, sanitizeText, normalizeArray, stripControlChars } = require('../server/lib/sanitize');
+import test from 'node:test';
+import assert from 'node:assert';
+import { clampNumber, sanitizeText, normalizeArray, stripControlChars } from '../server/lib/sanitize';
 
 test('sanitizeText trims, caps length, and drops control characters', () => {
   assert.strictEqual(sanitizeText('  FW  ', 24), 'FW');

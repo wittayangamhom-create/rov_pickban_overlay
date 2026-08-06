@@ -6,10 +6,13 @@
 // ตอนทำโลโก้ทีมสำหรับทัวร์นาเมนต์ (128 ทีม) จะใช้ตารางตายตัวไม่ได้แล้ว
 // ให้ตั้งชื่อไฟล์จาก id ที่ "ฝั่งเซิร์ฟเวอร์เป็นคนสร้าง" แล้วตรวจด้วย
 // isSafeMediaId ก่อนใช้เสมอ ห้ามใช้ชื่อทีมที่ผู้ใช้พิมพ์มาเป็นชื่อไฟล์
+//
+// SkinSlot / LogoSlot เป็นชนิดที่คำนวณจากตารางข้างล่าง ไม่ได้พิมพ์ซ้ำ
+// เพิ่มช่องใหม่ในตารางแล้วชนิดขยายตามเอง ลืมแก้ที่อื่นไม่ได้
 
-const fs = require('fs');
-const path = require('path');
-const { USER_MEDIA_DIR } = require('../config');
+import fs from 'fs';
+import path from 'path';
+import { USER_MEDIA_DIR } from '../config';
 
 // ภาพพื้นหลังที่ผู้ใช้ออกแบบเอง แยกเป็นส่วนบน/ส่วนล่าง และแยกตามขนาดจอ
 // overlay: บน = แถบ ban/score/timer, ล่าง = การ์ด pick
@@ -17,7 +20,7 @@ const { USER_MEDIA_DIR } = require('../config');
 //
 // แยก 1080p กับ 1440p คนละไฟล์ เพราะขนาดที่วาดจริงไม่เท่ากัน
 // ถ้าใช้ไฟล์เดียวกัน ภาพ 1080p จะถูกขยายขึ้นไปใช้กับ 1440p แล้วเบลอ
-const SKIN_SLOTS = {
+export const SKIN_SLOTS = {
   overlayTop1080: 'overlay-top-1080',
   overlayTop1440: 'overlay-top-1440',
   overlayBottom1080: 'overlay-bottom-1080',
@@ -26,22 +29,43 @@ const SKIN_SLOTS = {
   resultTop1440: 'result-top-1440',
   resultBottom1080: 'result-bottom-1080',
   resultBottom1440: 'result-bottom-1440'
-};
+} as const;
 
 // โลโก้ทีม แยกจาก skin เพราะผูกกับทีม ไม่ได้ผูกกับขนาดจอ
 // ชื่อไฟล์มาจากตารางนี้เท่านั้น ไม่เอาค่าจากผู้ใช้มาต่อ path
-const LOGO_SLOTS = { teamBlue: 'blue-team', teamRed: 'red-team' };
+export const LOGO_SLOTS = { teamBlue: 'blue-team', teamRed: 'red-team' } as const;
 
-const SKIN_DIR = path.join(USER_MEDIA_DIR, 'skins');
-const LOGO_DIR = path.join(USER_MEDIA_DIR, 'team-logos');
+export type SkinSlot = keyof typeof SKIN_SLOTS;
+export type LogoSlot = keyof typeof LOGO_SLOTS;
+export type ImageExt = 'png' | 'jpg' | 'webp';
 
-const SKIN_MAX_BYTES = 8 * 1024 * 1024;
-const LOGO_MAX_BYTES = 4 * 1024 * 1024;
-const SKIN_TYPES = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
+export interface Logo {
+  v: number;
+  ext: ImageExt | '';
+}
+
+export interface Skin {
+  enabled: boolean;
+  showPanels: boolean;
+  slots: Record<SkinSlot, number>;
+}
+
+export const SKIN_DIR = path.join(USER_MEDIA_DIR, 'skins');
+export const LOGO_DIR = path.join(USER_MEDIA_DIR, 'team-logos');
+
+export const SKIN_MAX_BYTES = 8 * 1024 * 1024;
+export const LOGO_MAX_BYTES = 4 * 1024 * 1024;
+export const SKIN_TYPES: Record<string, ImageExt> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp'
+};
+
+const IMAGE_EXTS: ImageExt[] = ['png', 'jpg', 'webp'];
 
 // ตรวจสามชั้น: ชื่อ slot ต้องอยู่ในตารางที่กำหนด, content-type ต้องเป็นภาพ
 // ที่รองรับ และ magic bytes ต้องตรงกับชนิดที่บอกมาจริงๆ
-const SKIN_MAGIC = {
+export const SKIN_MAGIC: Record<ImageExt, (b: Buffer) => boolean> = {
   png: (b) => b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47,
   jpg: (b) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
   webp: (b) => b.length > 12 && b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP'
@@ -49,44 +73,54 @@ const SKIN_MAGIC = {
 
 // id ที่เอาไปเป็นชื่อไฟล์ได้ ไว้ใช้ตอนโลโก้ต่อทีมในโหมดทัวร์นาเมนต์
 // ยอมเฉพาะ a-z 0-9 และ - เท่านั้น ไม่มีจุด ไม่มี slash จึงออกนอกโฟลเดอร์ไม่ได้
-function isSafeMediaId(value) {
+export function isSafeMediaId(value: unknown): value is string {
   return typeof value === 'string' && /^[a-z0-9][a-z0-9-]{0,63}$/.test(value);
 }
 
-function skinFilePath(slot, ext) {
+export function isSkinSlot(value: unknown): value is SkinSlot {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(SKIN_SLOTS, value);
+}
+
+export function isLogoSlot(value: unknown): value is LogoSlot {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(LOGO_SLOTS, value);
+}
+
+export function skinFilePath(slot: SkinSlot, ext: ImageExt): string {
   return path.join(SKIN_DIR, `${SKIN_SLOTS[slot]}.${ext}`);
 }
 
-function logoFilePath(team, ext) {
+export function logoFilePath(team: LogoSlot, ext: ImageExt): string {
   return path.join(LOGO_DIR, `${LOGO_SLOTS[team]}.${ext}`);
 }
 
-function removeSkinFiles(slot) {
-  Object.values(SKIN_TYPES).forEach((ext) => {
+export function removeSkinFiles(slot: SkinSlot): void {
+  IMAGE_EXTS.forEach((ext) => {
     try { fs.unlinkSync(skinFilePath(slot, ext)); } catch { /* ไม่มีไฟล์ก็ข้ามไป */ }
   });
 }
 
-function removeLogoFiles(team) {
-  Object.values(SKIN_TYPES).forEach((ext) => {
+export function removeLogoFiles(team: LogoSlot): void {
+  IMAGE_EXTS.forEach((ext) => {
     try { fs.unlinkSync(logoFilePath(team, ext)); } catch { /* ไม่มีไฟล์ก็ข้ามไป */ }
   });
 }
 
 // นามสกุลต้องเป็นค่าที่รู้จักเท่านั้น เพราะถูกเอาไปต่อเป็นชื่อไฟล์
-function sanitizeLogo(value) {
-  const source = value && typeof value === 'object' ? value : {};
+export function sanitizeLogo(value: unknown): Logo {
+  const source = (value && typeof value === 'object' ? value : {}) as { v?: unknown; ext?: unknown };
   const v = Number(source.v);
-  const ext = Object.values(SKIN_TYPES).includes(source.ext) ? source.ext : '';
+  const ext = IMAGE_EXTS.includes(source.ext as ImageExt) ? (source.ext as ImageExt) : '';
   if (!Number.isFinite(v) || v <= 0 || !ext) return { v: 0, ext: '' };
   return { v: Math.trunc(v), ext };
 }
 
-function sanitizeSkin(value) {
-  const source = value && typeof value === 'object' ? value : {};
-  const slotsIn = source.slots && typeof source.slots === 'object' ? source.slots : {};
-  const slots = {};
-  Object.keys(SKIN_SLOTS).forEach((key) => {
+export function sanitizeSkin(value: unknown): Skin {
+  const source = (value && typeof value === 'object' ? value : {}) as {
+    slots?: unknown; enabled?: unknown; showPanels?: unknown;
+  };
+  const slotsIn = (source.slots && typeof source.slots === 'object' ? source.slots : {}) as Record<string, unknown>;
+  const slots = {} as Record<SkinSlot, number>;
+  (Object.keys(SKIN_SLOTS) as SkinSlot[]).forEach((key) => {
     const n = Number(slotsIn[key]);
     slots[key] = Number.isFinite(n) && n > 0 ? Math.trunc(n) : 0;
   });
@@ -96,21 +130,3 @@ function sanitizeSkin(value) {
     slots
   };
 }
-
-module.exports = {
-  SKIN_SLOTS,
-  LOGO_SLOTS,
-  SKIN_DIR,
-  LOGO_DIR,
-  SKIN_MAX_BYTES,
-  LOGO_MAX_BYTES,
-  SKIN_TYPES,
-  SKIN_MAGIC,
-  isSafeMediaId,
-  skinFilePath,
-  logoFilePath,
-  removeSkinFiles,
-  removeLogoFiles,
-  sanitizeLogo,
-  sanitizeSkin
-};

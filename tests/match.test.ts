@@ -1,8 +1,8 @@
-const test = require('node:test');
-const assert = require('node:assert');
-const { defaultState, sanitizeState, isHeroTaken, dropDuplicateHeroes } = require('../server/domain/match');
-const { carryOverSettings, CARRIED_OVER_KEYS } = require('../server/domain/settings');
-const { heroesData } = require('../server/domain/heroes');
+import test from 'node:test';
+import assert from 'node:assert';
+import { defaultState, sanitizeState, isHeroTaken, dropDuplicateHeroes } from '../server/domain/match';
+import { carryOverSettings, CARRIED_OVER_KEYS } from '../server/domain/settings';
+import { heroesData } from '../server/domain/heroes';
 
 const [HERO_A, HERO_B] = heroesData.heroes;
 
@@ -16,8 +16,9 @@ test('sanitizeState fills every missing key from defaults (old save files still 
   };
   const state = sanitizeState(legacy);
 
+  const asRecord = state as unknown as Record<string, unknown>;
   Object.keys(defaultState).forEach((key) => {
-    assert.ok(state[key] !== undefined, `${key} should be present after sanitize`);
+    assert.ok(asRecord[key] !== undefined, `${key} should be present after sanitize`);
   });
   assert.strictEqual(state.teamBlue.name, 'FW');
   assert.strictEqual(state.teamRed.score, 2);
@@ -27,7 +28,9 @@ test('sanitizeState fills every missing key from defaults (old save files still 
 });
 
 test('sanitizeState drops unknown keys - tournament data must live in its own file', () => {
-  const state = sanitizeState({ tournamentId: 'abc123', somethingElse: 1 });
+  // อ่านผ่าน Record เพราะคีย์พวกนี้ไม่มีใน GameState อยู่แล้ว
+  // ซึ่งก็คือสิ่งที่เทสต์นี้ยืนยัน: มันต้องไม่รอดออกมาจาก sanitizeState
+  const state = sanitizeState({ tournamentId: 'abc123', somethingElse: 1 }) as unknown as Record<string, unknown>;
   assert.strictEqual(state.tournamentId, undefined);
   assert.strictEqual(state.somethingElse, undefined);
 });

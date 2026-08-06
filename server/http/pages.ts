@@ -3,12 +3,12 @@
 // เพิ่มหน้าใหม่ที่นี่ที่เดียว เช่น หน้าทัวร์นาเมนต์ / รายชื่อทีม / สถิติ
 // แล้วเพิ่มไฟล์ html ใน public/
 
-const path = require('path');
-const express = require('express');
-const { PUBLIC_DIR } = require('../config');
+import path from 'path';
+import express, { Router } from 'express';
+import { PUBLIC_DIR } from '../config';
 
 // route -> ไฟล์ใน public/
-const PAGES = {
+export const PAGES: Record<string, string> = {
   // / เป็นหน้าแรกแล้ว ไม่ใช่ control panel
   // control ย้ายไป /control ส่วน /index.html ทิ้ง redirect ไว้ให้ของเก่าที่ bookmark ไว้
   '/': 'home.html',
@@ -22,16 +22,14 @@ const PAGES = {
   '/presets': 'presets.html'
 };
 
-function pageRoutes() {
+export function pageRoutes(): Router {
   const router = express.Router();
 
   Object.entries(PAGES).forEach(([route, file]) => {
-    router.get(route, (req, res) => res.sendFile(path.join(PUBLIC_DIR, file)));
+    router.get(route, (_req, res) => res.sendFile(path.join(PUBLIC_DIR, file)));
   });
 
-  router.get('/index.html', (req, res) => res.redirect('/control'));
+  router.get('/index.html', (_req, res) => res.redirect('/control'));
 
   return router;
 }
-
-module.exports = { PAGES, pageRoutes };

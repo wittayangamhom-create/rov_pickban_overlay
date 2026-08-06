@@ -10,7 +10,7 @@
 // ตาราง matches / games จะมาในขั้นถัดไป (Phase 4-5) ตอนทำสายแข่งกับสถิติ
 // ยังไม่สร้างตอนนี้ เพราะยังไม่มีอะไรเขียนลงไป
 
-const MIGRATIONS = [
+export const MIGRATIONS: readonly string[] = [
   // 1 - ทีมกลาง และทัวร์นาเมนต์
   `
   CREATE TABLE teams (
@@ -59,5 +59,3 @@ const MIGRATIONS = [
   CREATE INDEX idx_tournaments_status ON tournaments(status);
   `
 ];
-
-module.exports = { MIGRATIONS };

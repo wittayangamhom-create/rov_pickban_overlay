@@ -11,7 +11,8 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
-const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', 'backups', '_archive']);
+// build/ คือผลลัพธ์จากคอมไพเลอร์ ไม่ใช่ซอร์ส ไม่ต้องตรวจ
+const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', '.git', 'backups', '_archive']);
 const SKIP_FILES = new Set(['__oracle.js', '__original-server.js']);
 const ALLOWED_CONTROL = new Set([9, 13]); // tab, CR
 
@@ -25,7 +26,9 @@ function walk(dir) {
       walk(path.join(dir, entry.name));
       continue;
     }
-    if (!entry.name.endsWith('.js') || SKIP_FILES.has(entry.name)) continue;
+    const isJs = entry.name.endsWith('.js');
+    const isTs = entry.name.endsWith('.ts');
+    if ((!isJs && !isTs) || SKIP_FILES.has(entry.name)) continue;
 
     const full = path.join(dir, entry.name);
     const rel = path.relative(ROOT, full);
@@ -37,6 +40,10 @@ function walk(dir) {
         .filter((c) => (c < 32 || c === 127) && !ALLOWED_CONTROL.has(c));
       if (codes.length) problems.push(`${rel}:${i + 1} control chars ${JSON.stringify(codes)}`);
     });
+
+    // node --check อ่าน TypeScript ไม่ได้ ไวยากรณ์ของ .ts ให้ tsc ตรวจ
+    // ที่นี่จึงตรวจแค่ .js (ตัวเปิดแอพ, สคริปต์เครื่องมือ, ไฟล์หน้าเว็บ)
+    if (!isJs) continue;
 
     try {
       execFileSync(process.execPath, ['--check', full], { stdio: 'pipe' });

@@ -2,48 +2,69 @@
 //
 // ทุกคำสั่งผ่าน controlEvent ซึ่งเช็คสิทธิ์ให้ก่อนเสมอ
 // ห้ามใช้ socket.on ตรงๆ กับคำสั่งที่แก้ state ไม่งั้นจะหลุดการตรวจสิทธิ์
+//
+// payload ที่เข้ามาเป็น unknown ทั้งหมด ต้องแกะเองทีละตัว
+// จะประกาศชนิดตายตัวไม่ได้ เพราะฝั่งที่ส่งมาคือหน้าเว็บที่ใครก็เปิดได้
 
-const { clampNumber, sanitizeText } = require('../lib/sanitize');
-const { sanitizeHero } = require('../domain/heroes');
-const {
+import type { Socket } from 'socket.io';
+import { clampNumber, sanitizeText } from '../lib/sanitize';
+import { sanitizeHero } from '../domain/heroes';
+import {
   PICK_COUNT,
   BAN_COUNT,
   isPickIndex,
   isBanIndex,
   sanitizeTimer,
   parseTimeToSeconds
-} = require('../domain/draft');
-const { isTeamKey, isHeroTaken } = require('../domain/match');
-const {
+} from '../domain/draft';
+import { isTeamKey, isHeroTaken } from '../domain/match';
+import {
   THEME_DEFAULTS,
   HOTKEY_DEFAULTS,
   sanitizeOverlaySize,
   sanitizeTheme,
   sanitizeHotkeys
-} = require('../domain/settings');
-const { deepClone } = require('../lib/json');
-const { getState, emitState, pushUndo, popUndo } = require('../store/live-state');
-const {
+} from '../domain/settings';
+import { deepClone } from '../lib/json';
+import { getState, emitState, pushUndo, popUndo } from '../store/live-state';
+import {
   setDraftSeconds,
   stopDraftTimer,
   startDraftPhase,
   checkAndAdvancePhase,
   resetDraft,
   resumeDraft
-} = require('../services/draft-engine');
-const { isAuthorizedSocket } = require('../http/auth');
+} from '../services/draft-engine';
+import { isAuthorizedSocket } from '../http/auth';
 
-function controlEvent(socket, eventName, handler) {
-  socket.on(eventName, (payload) => {
+type Payload = Record<string, unknown>;
+
+export function controlEvent(
+  socket: Socket,
+  eventName: string,
+  handler: (payload: Payload) => void
+): void {
+  socket.on(eventName, (payload: unknown) => {
     if (!isAuthorizedSocket(socket)) {
       socket.emit('controlError', { message: 'Unauthorized control request' });
       return;
     }
-    handler(payload || {});
+    handler((payload || {}) as Payload);
   });
 }
 
-function registerHandlers(socket) {
+// คำสั่งที่ส่งค่าเดี่ยวๆ มา ไม่ใช่ object (updatePhase, updateTimer, updateOverlaySize)
+function rawEvent(socket: Socket, eventName: string, handler: (payload: unknown) => void): void {
+  socket.on(eventName, (payload: unknown) => {
+    if (!isAuthorizedSocket(socket)) {
+      socket.emit('controlError', { message: 'Unauthorized control request' });
+      return;
+    }
+    handler(payload ?? {});
+  });
+}
+
+export function registerHandlers(socket: Socket): void {
   console.log('Client connected:', socket.id);
   socket.emit('stateUpdate', getState());
 
@@ -128,12 +149,12 @@ function registerHandlers(socket) {
     emitState();
   });
 
-  controlEvent(socket, 'updatePhase', (phase) => {
+  rawEvent(socket, 'updatePhase', (phase) => {
     getState().currentPhase = phase === 'PICK' ? 'PICK' : 'BAN';
     emitState();
   });
 
-  controlEvent(socket, 'updateTimer', (timer) => {
+  rawEvent(socket, 'updateTimer', (timer) => {
     const state = getState();
     state.timer = sanitizeTimer(timer);
     setDraftSeconds(parseTimeToSeconds(state.timer));
@@ -142,31 +163,31 @@ function registerHandlers(socket) {
 
   controlEvent(socket, 'updateSkinOptions', (data) => {
     const state = getState();
-    if (typeof data?.enabled === 'boolean') state.skin.enabled = data.enabled;
-    if (typeof data?.showPanels === 'boolean') state.skin.showPanels = data.showPanels;
+    if (typeof data.enabled === 'boolean') state.skin.enabled = data.enabled;
+    if (typeof data.showPanels === 'boolean') state.skin.showPanels = data.showPanels;
     emitState();
   });
 
   // เลือกขนาดครั้งเดียว ทุกหน้าที่เปิดอยู่จะสลับตามทันที
-  controlEvent(socket, 'updateOverlaySize', (data) => {
-    const size = typeof data === 'string' ? data : data?.size;
+  rawEvent(socket, 'updateOverlaySize', (data) => {
+    const size = typeof data === 'string' ? data : (data as Payload)?.size;
     getState().overlaySize = sanitizeOverlaySize(size);
     emitState();
   });
 
   // patch ทีละคีย์ หน้า design ส่งมาเฉพาะตัวที่เพิ่งลาก
   // ค่าที่ไม่รู้จักถูก sanitizeTheme ตัดทิ้งเอง
-  controlEvent(socket, 'updateTheme', (data) => {
+  rawEvent(socket, 'updateTheme', (data) => {
     if (!data || typeof data !== 'object') return;
     const state = getState();
-    state.theme = sanitizeTheme({ ...state.theme, ...data });
+    state.theme = sanitizeTheme({ ...state.theme, ...(data as Payload) });
     emitState();
   });
 
-  controlEvent(socket, 'updateHotkeys', (data) => {
+  rawEvent(socket, 'updateHotkeys', (data) => {
     if (!data || typeof data !== 'object') return;
     const state = getState();
-    state.hotkeys = sanitizeHotkeys({ ...state.hotkeys, ...data });
+    state.hotkeys = sanitizeHotkeys({ ...state.hotkeys, ...(data as Payload) });
     emitState();
   });
 
@@ -185,8 +206,9 @@ function registerHandlers(socket) {
   // เพราะถ้าเปิด control ไว้หลายเครื่อง ต่างเครื่องอาจเห็นสถานะไม่ตรงกัน
   controlEvent(socket, 'setOverlayVisible', (data) => {
     const state = getState();
-    const next = typeof data?.visible === 'boolean' ? data.visible : !state.overlayVisible;
-    state.overlayVisible = next;
+    state.overlayVisible = typeof data.visible === 'boolean'
+      ? data.visible
+      : !state.overlayVisible;
     emitState();
   });
 
@@ -225,7 +247,7 @@ function registerHandlers(socket) {
     if (!isTeamKey(team) || !isPickIndex(index1) || !isPickIndex(index2)) return;
     pushUndo();
     const picks = getState()[team].picks;
-    [picks[index1], picks[index2]] = [picks[index2], picks[index1]];
+    [picks[index1], picks[index2]] = [picks[index2]!, picks[index1]!];
     emitState();
   });
 
@@ -233,5 +255,3 @@ function registerHandlers(socket) {
     console.log('Client disconnected:', socket.id);
   });
 }
-
-module.exports = { controlEvent, registerHandlers };

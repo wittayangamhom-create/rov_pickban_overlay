@@ -6,12 +6,19 @@
 //
 // ห้ามสร้าง id จากชื่อที่ผู้ใช้พิมพ์ ไม่ว่าจะ slugify ดีแค่ไหนก็ตาม
 
-const crypto = require('crypto');
-const { isSafeMediaId } = require('./media');
+import crypto from 'crypto';
+import { isSafeMediaId } from './media';
 
-const PREFIX = { team: 't', tournament: 'g', match: 'm', game: 'x' };
+export type IdKind = 'team' | 'tournament' | 'match' | 'game';
 
-function newId(kind) {
+export const PREFIX: Record<IdKind, string> = {
+  team: 't',
+  tournament: 'g',
+  match: 'm',
+  game: 'x'
+};
+
+export function newId(kind: IdKind): string {
   const prefix = PREFIX[kind];
   if (!prefix) throw new Error(`Unknown id kind: ${kind}`);
   const id = `${prefix}${crypto.randomBytes(6).toString('hex')}`;
@@ -19,5 +26,3 @@ function newId(kind) {
   if (!isSafeMediaId(id)) throw new Error(`Generated unsafe id: ${id}`);
   return id;
 }
-
-module.exports = { newId, PREFIX };

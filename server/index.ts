@@ -3,22 +3,27 @@
 // ลำดับใน createApp สำคัญ: static ของภาพที่ผู้ใช้อัปโหลดต้องมาก่อน
 // express.static(PUBLIC_DIR) ไม่งั้นภาพเดิมที่อยู่ใน asar จะบังภาพใหม่
 
-const path = require('path');
-const http = require('http');
-const express = require('express');
-const socketIO = require('socket.io');
-const cors = require('cors');
+import path from 'path';
+import http from 'http';
+import express, { Express } from 'express';
+import { Server as SocketServer } from 'socket.io';
+import cors from 'cors';
 
-const { PORT, HOST, CONTROL_TOKEN, PUBLIC_DIR, USER_MEDIA_DIR } = require('./config');
-const { attachIo } = require('./store/live-state');
-const { pageRoutes } = require('./http/pages');
-const { stateRoutes } = require('./http/api-state');
-const { presetRoutes } = require('./http/api-presets');
-const { mediaRoutes } = require('./http/api-media');
-const { registerHandlers } = require('./sockets/handlers');
+import { PORT, HOST, CONTROL_TOKEN, PUBLIC_DIR, USER_MEDIA_DIR } from './config';
+import { attachIo } from './store/live-state';
+import { pageRoutes } from './http/pages';
+import { stateRoutes } from './http/api-state';
+import { presetRoutes } from './http/api-presets';
+import { mediaRoutes } from './http/api-media';
+import { registerHandlers } from './sockets/handlers';
 
-function isAllowedOrigin(origin, callback) {
-  if (!origin) return callback(null, true);
+type OriginCallback = (err: Error | null, allow?: boolean) => void;
+
+export function isAllowedOrigin(origin: string | undefined, callback: OriginCallback): void {
+  if (!origin) {
+    callback(null, true);
+    return;
+  }
 
   try {
     const url = new URL(origin);
@@ -28,13 +33,13 @@ function isAllowedOrigin(origin, callback) {
       host === '127.0.0.1' ||
       host === '::1';
 
-    return callback(allowed ? null : new Error('Origin not allowed'), allowed);
+    callback(allowed ? null : new Error('Origin not allowed'), allowed);
   } catch {
-    return callback(new Error('Invalid origin'), false);
+    callback(new Error('Invalid origin'), false);
   }
 }
 
-function createApp() {
+export function createApp(): Express {
   const app = express();
 
   app.use(cors({ origin: isAllowedOrigin }));
@@ -56,11 +61,15 @@ function createApp() {
   return app;
 }
 
-function createServer() {
+export function createServer(): {
+  app: Express;
+  server: http.Server;
+  io: SocketServer;
+} {
   const app = createApp();
   const server = http.createServer(app);
 
-  const io = socketIO(server, {
+  const io = new SocketServer(server, {
     cors: {
       origin: isAllowedOrigin,
       methods: ['GET', 'POST']
@@ -73,7 +82,11 @@ function createServer() {
   return { app, server, io };
 }
 
-function start({ port = PORT, host = HOST } = {}) {
+export function start(
+  options: { port?: number; host?: string } = {}
+): { server: http.Server; io: SocketServer } {
+  const port = options.port ?? PORT;
+  const host = options.host ?? HOST;
   const { server, io } = createServer();
 
   server.listen(port, host, () => {
@@ -94,5 +107,3 @@ function start({ port = PORT, host = HOST } = {}) {
 
   return { server, io };
 }
-
-module.exports = { createApp, createServer, start, isAllowedOrigin };

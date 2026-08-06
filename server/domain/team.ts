@@ -8,21 +8,46 @@
 // กลายเป็นว่าคนที่ไม่ได้ลงแข่งโผล่ไปอยู่ในผลเมื่อปีที่แล้ว
 // และสถิติ pick/ban ที่อ้างอิงผลพวกนั้นก็เพี้ยนตามไปด้วย
 
-const { sanitizeText, clampNumber } = require('../lib/sanitize');
-const { sanitizeLogo } = require('./media');
-const { PICK_COUNT } = require('./draft');
+import { sanitizeText, clampNumber } from '../lib/sanitize';
+import type { Logo } from './media';
+import { sanitizeLogo } from './media';
+import { PICK_COUNT } from './draft';
 
-// ชื่อทีมยาวเท่ากับที่ overlay รองรับ (sanitizeTeam ใน match.js ใช้ 24 เท่ากัน)
+// ชื่อทีมยาวเท่ากับที่ overlay รองรับ (sanitizeTeam ใน match.ts ใช้ 24 เท่ากัน)
 // ถ้าให้ยาวกว่านั้น พอโหลดขึ้น overlay จะถูกตัดอยู่ดี แต่ผู้ใช้ไม่รู้ตัว
-const NAME_MAX = 24;
-const TAG_MAX = 6;
+export const NAME_MAX = 24;
+export const TAG_MAX = 6;
 const ROLE_MAX = 16;
 const PLAYER_NAME_MAX = 24;
 
-const ROSTER_SIZE = PICK_COUNT;
+export const ROSTER_SIZE = PICK_COUNT;
 
-function sanitizePlayer(player, index) {
-  const source = player && typeof player === 'object' ? player : {};
+export interface TeamPlayer {
+  slot: number;
+  name: string;
+  role: string;
+  isCaptain: boolean;
+}
+
+// ทีมที่ผู้ใช้กรอกเข้ามา ยังไม่มี id เพราะ id ออกให้ตอนบันทึก
+export interface TeamInput {
+  name: string;
+  tag: string;
+  logo: Logo;
+  players: TeamPlayer[];
+}
+
+// ทีมที่อยู่ในทะเบียนแล้ว
+export interface Team extends TeamInput {
+  id: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type TeamInputResult = { team: TeamInput; error?: undefined } | { error: string; team?: undefined };
+
+export function sanitizePlayer(player: unknown, index: number): TeamPlayer {
+  const source = (player && typeof player === 'object' ? player : {}) as Record<string, unknown>;
   return {
     slot: index,
     name: sanitizeText(source.name, PLAYER_NAME_MAX),
@@ -32,10 +57,10 @@ function sanitizePlayer(player, index) {
 }
 
 // รายชื่อผู้เล่นมี 5 ช่องเสมอ ปล่อยว่างได้
-// ต่างจาก match.js ที่เติม 'Player 1' ให้ เพราะตรงนั้นต้องมีอะไรขึ้นจอ
+// ต่างจาก match.ts ที่เติม 'Player 1' ให้ เพราะตรงนั้นต้องมีอะไรขึ้นจอ
 // ส่วนทะเบียนทีมปล่อยว่างไว้ได้ ยังไม่รู้ตัวจริงก็กรอกทีหลัง
-function sanitizeRoster(players) {
-  const input = Array.isArray(players) ? players : [];
+export function sanitizeRoster(players: unknown): TeamPlayer[] {
+  const input = Array.isArray(players) ? (players as unknown[]) : [];
   const roster = Array.from({ length: ROSTER_SIZE }, (_, i) => sanitizePlayer(input[i], i));
 
   // กัปตันมีได้คนเดียว เอาคนแรกที่ติ๊กมา
@@ -53,8 +78,8 @@ function sanitizeRoster(players) {
 
 // คืน { team } เมื่อผ่าน หรือ { error } เมื่อไม่ผ่าน
 // ชื่อทีมว่างไม่ได้ อย่างอื่นปล่อยว่างได้หมด
-function sanitizeTeamInput(input) {
-  const source = input && typeof input === 'object' ? input : {};
+export function sanitizeTeamInput(input: unknown): TeamInputResult {
+  const source = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
   const name = sanitizeText(source.name, NAME_MAX);
   if (!name) return { error: 'Team name is required' };
 
@@ -68,16 +93,6 @@ function sanitizeTeamInput(input) {
   };
 }
 
-function sanitizeSeed(value) {
+export function sanitizeSeed(value: unknown): number {
   return clampNumber(value, 0, 9999);
 }
-
-module.exports = {
-  NAME_MAX,
-  TAG_MAX,
-  ROSTER_SIZE,
-  sanitizeTeamInput,
-  sanitizeRoster,
-  sanitizePlayer,
-  sanitizeSeed
-};

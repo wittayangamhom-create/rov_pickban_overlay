@@ -1,16 +1,31 @@
 // ลำดับการแบน/เลือก และตัวช่วยเรื่องเวลา
 //
 // ส่วนนี้เป็นฟังก์ชันบริสุทธิ์ล้วน ไม่แตะ state และไม่ตั้งนาฬิกา
-// ตัวที่เดินนาฬิกาจริงอยู่ที่ services/draft-engine.js
+// ตัวที่เดินนาฬิกาจริงอยู่ที่ services/draft-engine.ts
 // แยกกันเพื่อให้เขียนเทสต์ลำดับดราฟต์ได้โดยไม่ต้องเปิดเซิร์ฟเวอร์
 //
 // เวลาจะรองรับ Bo3/Bo5 หรือกติกาที่ลำดับแบนต่างออกไป
 // ให้เพิ่มเป็นชุดลำดับใหม่ในไฟล์นี้ แล้วเลือกชุดตามโหมด
 // อย่าไปแก้ DRAFT_SEQUENCE ตรงๆ ของเดิมยังต้องใช้กับแมตช์ที่บันทึกไว้แล้ว
 
-const { sanitizeText } = require('../lib/sanitize');
+import { sanitizeText } from '../lib/sanitize';
 
-const DRAFT_SEQUENCE = [
+export type TeamKey = 'teamBlue' | 'teamRed';
+export type SlotType = 'picks' | 'bans';
+
+export interface DraftPhase {
+  label: string;
+  seconds: number;
+  slots: string[];
+}
+
+export interface ParsedSlot {
+  team: TeamKey;
+  type: SlotType;
+  index: number;
+}
+
+export const DRAFT_SEQUENCE: readonly DraftPhase[] = [
   { label: 'Blue Ban 1', seconds: 40, slots: ['blueBan0'] },
   { label: 'Red Ban 1', seconds: 40, slots: ['redBan0'] },
   { label: 'Blue Ban 2', seconds: 40, slots: ['blueBan1'] },
@@ -29,20 +44,20 @@ const DRAFT_SEQUENCE = [
   { label: 'Waiting', seconds: 60, slots: [] }
 ];
 
-const PICK_COUNT = 5;
-const BAN_COUNT = 4;
+export const PICK_COUNT = 5;
+export const BAN_COUNT = 4;
 
 const SLOT_PATTERN = /^(blue|red)(Pick|Ban)(\d)$/;
 
-function isPickIndex(index) {
-  return Number.isInteger(index) && index >= 0 && index < PICK_COUNT;
+export function isPickIndex(index: unknown): index is number {
+  return Number.isInteger(index) && (index as number) >= 0 && (index as number) < PICK_COUNT;
 }
 
-function isBanIndex(index) {
-  return Number.isInteger(index) && index >= 0 && index < BAN_COUNT;
+export function isBanIndex(index: unknown): index is number {
+  return Number.isInteger(index) && (index as number) >= 0 && (index as number) < BAN_COUNT;
 }
 
-function isSlotId(slotId) {
+export function isSlotId(slotId: unknown): slotId is string {
   if (typeof slotId !== 'string') return false;
   const match = slotId.match(SLOT_PATTERN);
   if (!match) return false;
@@ -52,7 +67,7 @@ function isSlotId(slotId) {
 
 // 'bluePick2' -> { team: 'teamBlue', type: 'picks', index: 2 }
 // คืน null เมื่อรูปแบบไม่ถูก ผู้เรียกต้องเช็คก่อนใช้
-function parseSlotId(slotId) {
+export function parseSlotId(slotId: unknown): ParsedSlot | null {
   if (typeof slotId !== 'string') return null;
   const match = slotId.match(SLOT_PATTERN);
   if (!match) return null;
@@ -63,37 +78,24 @@ function parseSlotId(slotId) {
   };
 }
 
-function parseTimeToSeconds(timer) {
+export function parseTimeToSeconds(timer: unknown): number {
   if (!timer) return 0;
   const parts = String(timer).split(':').map(Number);
   if (parts.length === 2 && parts.every(Number.isFinite)) {
-    return Math.max(0, parts[0] * 60 + parts[1]);
+    return Math.max(0, (parts[0] as number) * 60 + (parts[1] as number));
   }
   const seconds = Number(timer);
   return Number.isFinite(seconds) ? Math.max(0, Math.trunc(seconds)) : 0;
 }
 
-function formatSeconds(seconds) {
+export function formatSeconds(seconds: number): string {
   const n = Math.max(0, Math.trunc(seconds));
   const minutes = String(Math.floor(n / 60)).padStart(2, '0');
   const secs = String(n % 60).padStart(2, '0');
   return `${minutes}:${secs}`;
 }
 
-function sanitizeTimer(value) {
+export function sanitizeTimer(value: unknown): string {
   const timer = sanitizeText(value, 8);
   return /^\d{1,2}:\d{2}$/.test(timer) || /^\d{1,3}$/.test(timer) ? timer : '00:00';
 }
-
-module.exports = {
-  DRAFT_SEQUENCE,
-  PICK_COUNT,
-  BAN_COUNT,
-  isPickIndex,
-  isBanIndex,
-  isSlotId,
-  parseSlotId,
-  parseTimeToSeconds,
-  formatSeconds,
-  sanitizeTimer
-};

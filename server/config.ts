@@ -3,33 +3,36 @@
 // โมดูลนี้อยู่ใน server/ แต่ไฟล์ข้อมูลกับ public/ อยู่ที่ราก
 // ทุก path จึงต้องอ้างจาก ROOT_DIR ไม่ใช่ __dirname ของไฟล์นี้
 //
+// ระวัง: หลังคอมไพล์ ไฟล์นี้ไปอยู่ที่ build/server/config.js
+// ต้องขึ้นสองชั้นถึงรากโปรเจกต์ ไม่ใช่ชั้นเดียวเหมือนตอนเป็น server/config.js
+//
 // อ่าน env ตอน require ห้าม cache ไว้ก่อนหน้านั้น
 // electron-main.js ตั้ง ROV_USER_DATA_DIR / ROV_USER_MEDIA_DIR
 // แล้วค่อย require server.js ถ้าอ่านเร็วกว่านั้นจะได้ค่าว่าง
 
-const path = require('path');
+import path from 'path';
 
-const ROOT_DIR = path.join(__dirname, '..');
+export const ROOT_DIR = path.join(__dirname, '..', '..');
 
-const PORT = Number(process.env.PORT) || 3000;
-const HOST = process.env.HOST || '127.0.0.1';
-const CONTROL_TOKEN = process.env.CONTROL_TOKEN || '';
+export const PORT = Number(process.env.PORT) || 3000;
+export const HOST = process.env.HOST || '127.0.0.1';
+export const CONTROL_TOKEN = process.env.CONTROL_TOKEN || '';
 
 // APP_DATA_DIR = ข้อมูลที่มากับตัวแอพ (heroes.json) อ่านอย่างเดียว
 // DATA_DIR     = ข้อมูลของผู้ใช้ เขียนได้ ตอนแพ็กเป็น exe จะย้ายออกนอก asar
-const APP_DATA_DIR = path.join(ROOT_DIR, 'data');
-const DATA_DIR = process.env.ROV_USER_DATA_DIR || APP_DATA_DIR;
-const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
+export const APP_DATA_DIR = path.join(ROOT_DIR, 'data');
+export const DATA_DIR = process.env.ROV_USER_DATA_DIR || APP_DATA_DIR;
+export const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
 
-const STATE_PATH = path.join(DATA_DIR, 'state.json');
-const PRESETS_PATH = path.join(DATA_DIR, 'presets.json');
+export const STATE_PATH = path.join(DATA_DIR, 'state.json');
+export const PRESETS_PATH = path.join(DATA_DIR, 'presets.json');
 
 // ข้อมูลทัวร์นาเมนต์กับทีมอยู่ใน SQLite แยกจาก state.json / presets.json
 //
 // ที่ไม่ยัดรวมใน state.json เพราะ sanitizeState เก็บเฉพาะคีย์ที่รู้จัก
 // คีย์แปลกปลอมถูกทิ้งตอนเซฟรอบถัดไป เปิดด้วยเวอร์ชันเก่าทีเดียวข้อมูลหายหมด
 // อยู่คนละไฟล์แล้วเวอร์ชันเก่าจะมองไม่เห็น ไม่ไปยุ่ง ข้อมูลจึงรอด
-const TOURNAMENT_DB_PATH = path.join(DATA_DIR, 'tournament.db');
+export const TOURNAMENT_DB_PATH = path.join(DATA_DIR, 'tournament.db');
 
 // ที่เก็บภาพที่ผู้ใช้อัปโหลด (โลโก้ทีม + ภาพพื้นหลัง)
 //
@@ -38,21 +41,6 @@ const TOURNAMENT_DB_PATH = path.join(DATA_DIR, 'tournament.db');
 // เหมือนกับ state/presets ที่ย้ายไป ROV_USER_DATA_DIR ภาพก็ต้องออกมาอยู่นอก
 // asar เช่นกัน ตอนรันจาก source (ไม่ได้ตั้ง env) ใช้ public/images ตามเดิม
 // ของเก่าที่มีอยู่แล้วจะได้ยังใช้ได้
-const USER_MEDIA_DIR = process.env.ROV_USER_MEDIA_DIR || path.join(PUBLIC_DIR, 'images');
+export const USER_MEDIA_DIR = process.env.ROV_USER_MEDIA_DIR || path.join(PUBLIC_DIR, 'images');
 
-const HERO_IMAGE_DIR = path.join(PUBLIC_DIR, 'images', 'heroes');
-
-module.exports = {
-  ROOT_DIR,
-  PORT,
-  HOST,
-  CONTROL_TOKEN,
-  APP_DATA_DIR,
-  DATA_DIR,
-  PUBLIC_DIR,
-  STATE_PATH,
-  PRESETS_PATH,
-  TOURNAMENT_DB_PATH,
-  USER_MEDIA_DIR,
-  HERO_IMAGE_DIR
-};
+export const HERO_IMAGE_DIR = path.join(PUBLIC_DIR, 'images', 'heroes');

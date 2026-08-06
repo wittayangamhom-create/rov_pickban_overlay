@@ -1,34 +1,34 @@
 // นาฬิกาดราฟต์ และการเดินไปเฟสถัดไป
 //
-// แยกจาก domain/draft.js ตรงที่ไฟล์นี้ "มีผลข้างเคียง" ตั้ง interval จริง
+// แยกจาก domain/draft.ts ตรงที่ไฟล์นี้ "มีผลข้างเคียง" ตั้ง interval จริง
 // และแก้ state จริง ส่วนตัวลำดับกับตัวแปลงเวลาเป็นฟังก์ชันบริสุทธิ์อยู่ที่โน่น
 
-const { clampNumber } = require('../lib/sanitize');
-const {
+import { clampNumber } from '../lib/sanitize';
+import {
   DRAFT_SEQUENCE,
   parseSlotId,
   parseTimeToSeconds,
   formatSeconds
-} = require('../domain/draft');
-const { getState, emitState } = require('../store/live-state');
+} from '../domain/draft';
+import { getState, emitState } from '../store/live-state';
 
-let draftInterval = null;
+let draftInterval: NodeJS.Timeout | null = null;
 let draftSeconds = parseTimeToSeconds(getState().timer);
 
-function getDraftSeconds() {
+export function getDraftSeconds(): number {
   return draftSeconds;
 }
 
-function setDraftSeconds(value) {
+export function setDraftSeconds(value: number): void {
   draftSeconds = value;
 }
 
 // เรียกหลังเปลี่ยน state.timer จากทางอื่น เพื่อให้นาฬิกาตรงกับที่แสดง
-function syncSecondsFromState() {
+export function syncSecondsFromState(): void {
   draftSeconds = parseTimeToSeconds(getState().timer);
 }
 
-function stopDraftTimer() {
+export function stopDraftTimer(): void {
   if (draftInterval) {
     clearInterval(draftInterval);
     draftInterval = null;
@@ -36,7 +36,7 @@ function stopDraftTimer() {
   getState().draftRunning = false;
 }
 
-function runDraftInterval() {
+function runDraftInterval(): void {
   if (draftInterval) clearInterval(draftInterval);
   draftInterval = setInterval(() => {
     draftSeconds -= 1;
@@ -48,7 +48,7 @@ function runDraftInterval() {
   }, 1000);
 }
 
-function startDraftPhase(index) {
+export function startDraftPhase(index: number): void {
   stopDraftTimer();
   const state = getState();
   const safeIndex = clampNumber(index, 0, DRAFT_SEQUENCE.length);
@@ -62,7 +62,7 @@ function startDraftPhase(index) {
     return;
   }
 
-  const phase = DRAFT_SEQUENCE[safeIndex];
+  const phase = DRAFT_SEQUENCE[safeIndex]!;
   state.draftPhaseIndex = safeIndex;
   state.draftLabel = phase.label;
   state.draftActiveSlots = phase.slots || [];
@@ -73,7 +73,7 @@ function startDraftPhase(index) {
   runDraftInterval();
 }
 
-function checkAndAdvancePhase() {
+export function checkAndAdvancePhase(): void {
   const state = getState();
   const slots = state.draftActiveSlots;
   if (!slots || slots.length === 0) return;
@@ -85,7 +85,7 @@ function checkAndAdvancePhase() {
   if (allFilled) startDraftPhase(state.draftPhaseIndex + 1);
 }
 
-function resetDraft() {
+export function resetDraft(): void {
   stopDraftTimer();
   const state = getState();
   state.draftPhaseIndex = -1;
@@ -97,24 +97,15 @@ function resetDraft() {
   emitState();
 }
 
-function resumeDraft() {
+export function resumeDraft(): void {
   const state = getState();
   if (!state.draftRunning && state.draftPhaseIndex >= 0) {
-    draftSeconds = draftSeconds > 0 ? draftSeconds : DRAFT_SEQUENCE[state.draftPhaseIndex]?.seconds || 60;
+    draftSeconds = draftSeconds > 0
+      ? draftSeconds
+      : DRAFT_SEQUENCE[state.draftPhaseIndex]?.seconds || 60;
     state.timer = formatSeconds(draftSeconds);
     state.draftRunning = true;
     emitState();
     runDraftInterval();
   }
 }
-
-module.exports = {
-  getDraftSeconds,
-  setDraftSeconds,
-  syncSecondsFromState,
-  stopDraftTimer,
-  startDraftPhase,
-  checkAndAdvancePhase,
-  resetDraft,
-  resumeDraft
-};

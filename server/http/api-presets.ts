@@ -1,31 +1,35 @@
 // API ของพรีเซ็ตแมตช์
 
-const express = require('express');
-const { sanitizeText } = require('../lib/sanitize');
-const { sanitizeState } = require('../domain/match');
-const { CARRIED_OVER_KEYS, carryOverSettings } = require('../domain/settings');
-const { getState, setState, emitState } = require('../store/live-state');
-const { stopDraftTimer, syncSecondsFromState } = require('../services/draft-engine');
-const { readPresets, writePresets, hasPreset, presetListPayload } = require('../store/presets');
-const { requireControl } = require('./auth');
+import express, { Router } from 'express';
+import { sanitizeText } from '../lib/sanitize';
+import { sanitizeState } from '../domain/match';
+import { CARRIED_OVER_KEYS, carryOverSettings } from '../domain/settings';
+import { getState, setState, emitState } from '../store/live-state';
+import { stopDraftTimer, syncSecondsFromState } from '../services/draft-engine';
+import { readPresets, writePresets, hasPreset, presetListPayload } from '../store/presets';
+import { requireControl } from './auth';
 
 const NAME_MAX = 40;
 
-function presetRoutes() {
+export function presetRoutes(): Router {
   const router = express.Router();
 
-  router.get('/api/presets', (req, res) => {
+  router.get('/api/presets', (_req, res) => {
     res.json(presetListPayload(readPresets()));
   });
 
   router.post('/api/presets', requireControl, (req, res) => {
-    const name = sanitizeText(req.body?.name, NAME_MAX);
-    if (!name) return res.status(400).json({ error: 'Preset name is required' });
+    const body = (req.body || {}) as { name?: unknown; state?: unknown };
+    const name = sanitizeText(body.name, NAME_MAX);
+    if (!name) {
+      res.status(400).json({ error: 'Preset name is required' });
+      return;
+    }
     const presets = readPresets();
-    const sourceState = req.body?.state && typeof req.body.state === 'object' ? req.body.state : getState();
+    const sourceState = body.state && typeof body.state === 'object' ? body.state : getState();
     // พรีเซ็ตเก็บเฉพาะข้อมูลแมตช์ ตัดการตั้งค่าเครื่องมือทิ้ง
     // ตอนโหลดก็ไม่ได้เอาไปใช้อยู่แล้ว เก็บไว้มีแต่จะทำให้เข้าใจผิดว่ามันผูกกัน
-    const preset = sanitizeState(sourceState);
+    const preset = sanitizeState(sourceState) as unknown as Record<string, unknown>;
     CARRIED_OVER_KEYS.forEach((key) => { delete preset[key]; });
     presets[name] = preset;
     writePresets(presets);
@@ -38,7 +42,8 @@ function presetRoutes() {
     const name = sanitizeText(req.params.name, NAME_MAX);
     const presets = readPresets();
     if (!hasPreset(presets, name)) {
-      return res.status(404).json({ error: 'Preset not found' });
+      res.status(404).json({ error: 'Preset not found' });
+      return;
     }
     delete presets[name];
     writePresets(presets);
@@ -51,15 +56,20 @@ function presetRoutes() {
     const name = sanitizeText(req.params.name, NAME_MAX);
     const presets = readPresets();
     if (!hasPreset(presets, name)) {
-      return res.status(404).json({ error: 'Preset not found' });
+      res.status(404).json({ error: 'Preset not found' });
+      return;
     }
     res.json({ name, state: presets[name] });
   });
 
   router.post('/api/presets/load', requireControl, (req, res) => {
-    const name = sanitizeText(req.body?.name, NAME_MAX);
+    const body = (req.body || {}) as { name?: unknown };
+    const name = sanitizeText(body.name, NAME_MAX);
     const preset = readPresets()[name];
-    if (!preset) return res.status(404).json({ error: 'Preset not found' });
+    if (!preset) {
+      res.status(404).json({ error: 'Preset not found' });
+      return;
+    }
     stopDraftTimer();
     const previous = getState();
     setState(carryOverSettings(sanitizeState(preset), previous));
@@ -70,5 +80,3 @@ function presetRoutes() {
 
   return router;
 }
-
-module.exports = { presetRoutes };

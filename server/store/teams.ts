@@ -3,26 +3,60 @@
 // เขียนเป็น factory ที่รับ db เข้ามา ไม่ได้ไปเรียก getDatabase() เอง
 // เทสต์จะได้ส่งฐานแบบ ':memory:' เข้ามาแทน ไม่ไปแตะไฟล์จริงของผู้ใช้
 
-const { newId } = require('../domain/ids');
-const { sanitizeTeamInput, sanitizeRoster, ROSTER_SIZE } = require('../domain/team');
-const { sanitizeLogo } = require('../domain/media');
+import type { DatabaseSync } from 'node:sqlite';
+import { newId } from '../domain/ids';
+import type { Team, TeamPlayer } from '../domain/team';
+import { sanitizeTeamInput, sanitizeRoster, ROSTER_SIZE } from '../domain/team';
+import type { Logo, ImageExt } from '../domain/media';
+import { sanitizeLogo } from '../domain/media';
+
+export type TeamResult = { team: Team; error?: undefined } | { error: string; team?: undefined };
+export type RemoveResult = { ok: true; error?: undefined } | { error: string; ok?: undefined };
+
+interface TeamRow {
+  id: string;
+  name: string;
+  tag: string;
+  logo_v: number;
+  logo_ext: string;
+  created_at: number;
+  updated_at: number;
+}
+
+interface PlayerRow {
+  team_id: string;
+  slot: number;
+  name: string;
+  role: string;
+  is_captain: number;
+}
 
 // node:sqlite ไม่รับ boolean เป็นพารามิเตอร์ ต้องแปลงเป็น 0/1 เอง
-const bit = (value) => (value ? 1 : 0);
+const bit = (value: boolean): number => (value ? 1 : 0);
 
-function rowToTeam(row, players) {
+function rowToTeam(row: TeamRow, players: TeamPlayer[]): Team {
   return {
     id: row.id,
     name: row.name,
     tag: row.tag,
-    logo: { v: row.logo_v, ext: row.logo_ext },
+    logo: { v: row.logo_v, ext: row.logo_ext as ImageExt | '' },
     players,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
 }
 
-function createTeamStore(db) {
+export interface TeamStore {
+  count(): number;
+  get(id: string): Team | null;
+  list(): Team[];
+  create(input: unknown): TeamResult;
+  update(id: string, input: unknown): TeamResult;
+  setLogo(id: string, logo: unknown): TeamResult;
+  remove(id: string): RemoveResult;
+}
+
+export function createTeamStore(db: DatabaseSync): TeamStore {
   const q = {
     insert: db.prepare(
       'INSERT INTO teams (id, name, tag, logo_v, logo_ext, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
@@ -42,8 +76,10 @@ function createTeamStore(db) {
     countAll: db.prepare('SELECT COUNT(*) AS n FROM teams')
   };
 
-  function readPlayers(teamId) {
-    const rows = q.playersFor.all(teamId);
+  const findRow = (id: string): TeamRow | undefined => q.byId.get(id) as TeamRow | undefined;
+
+  function readPlayers(teamId: string): TeamPlayer[] {
+    const rows = q.playersFor.all(teamId) as unknown as PlayerRow[];
     // ฐานอาจมีไม่ครบ 5 แถวถ้าถูกแก้มาจากข้างนอก เติมให้ครบเสมอ
     return sanitizeRoster(
       Array.from({ length: ROSTER_SIZE }, (_, slot) => {
@@ -53,31 +89,32 @@ function createTeamStore(db) {
     );
   }
 
-  function writePlayers(teamId, players) {
+  function writePlayers(teamId: string, players: TeamPlayer[]): void {
     q.clearPlayers.run(teamId);
     players.forEach((player) => {
       q.insertPlayer.run(teamId, player.slot, player.name, player.role, bit(player.isCaptain));
     });
   }
 
-  return {
+  const store: TeamStore = {
     count() {
-      return q.countAll.get().n;
+      return (q.countAll.get() as { n: number }).n;
     },
 
     get(id) {
-      const row = q.byId.get(id);
+      const row = findRow(id);
       return row ? rowToTeam(row, readPlayers(id)) : null;
     },
 
     list() {
-      return q.all.all().map((row) => rowToTeam(row, readPlayers(row.id)));
+      return (q.all.all() as unknown as TeamRow[])
+        .map((row) => rowToTeam(row, readPlayers(row.id)));
     },
 
     // คืน { team } หรือ { error }
     create(input) {
       const checked = sanitizeTeamInput(input);
-      if (checked.error) return checked;
+      if (checked.error !== undefined) return { error: checked.error };
 
       const id = newId('team');
       const now = Date.now();
@@ -90,18 +127,18 @@ function createTeamStore(db) {
         db.exec('COMMIT');
       } catch (error) {
         db.exec('ROLLBACK');
-        return { error: `Could not create team: ${error.message}` };
+        return { error: `Could not create team: ${(error as Error).message}` };
       }
 
-      return { team: this.get(id) };
+      return { team: store.get(id) as Team };
     },
 
     // แก้ได้เฉพาะชื่อ/แท็ก/ผู้เล่น โลโก้แก้ผ่าน setLogo เพราะผูกกับไฟล์
     update(id, input) {
-      if (!q.byId.get(id)) return { error: 'Team not found' };
+      if (!findRow(id)) return { error: 'Team not found' };
 
       const checked = sanitizeTeamInput(input);
-      if (checked.error) return checked;
+      if (checked.error !== undefined) return { error: checked.error };
 
       const { name, tag, players } = checked.team;
       db.exec('BEGIN');
@@ -111,26 +148,26 @@ function createTeamStore(db) {
         db.exec('COMMIT');
       } catch (error) {
         db.exec('ROLLBACK');
-        return { error: `Could not update team: ${error.message}` };
+        return { error: `Could not update team: ${(error as Error).message}` };
       }
 
-      return { team: this.get(id) };
+      return { team: store.get(id) as Team };
     },
 
     setLogo(id, logo) {
-      if (!q.byId.get(id)) return { error: 'Team not found' };
-      const safe = sanitizeLogo(logo);
+      if (!findRow(id)) return { error: 'Team not found' };
+      const safe: Logo = sanitizeLogo(logo);
       q.updateLogo.run(safe.v, safe.ext, Date.now(), id);
-      return { team: this.get(id) };
+      return { team: store.get(id) as Team };
     },
 
     // ลบทีมออกจากทะเบียน ทีมหลุดจากทุกทัวร์นาเมนต์ด้วย (ON DELETE CASCADE)
     remove(id) {
-      if (!q.byId.get(id)) return { error: 'Team not found' };
+      if (!findRow(id)) return { error: 'Team not found' };
       q.remove.run(id);
       return { ok: true };
     }
   };
-}
 
-module.exports = { createTeamStore };
+  return store;
+}

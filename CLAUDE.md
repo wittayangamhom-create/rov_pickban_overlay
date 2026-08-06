@@ -6,16 +6,30 @@ wrapped in Electron. **All user data stays on the user's device** — no account
 ## Commands
 
 ```bash
-npm start          # run the server only
-npm run app        # run the Electron app
-npm test           # node --test over tests/
-npm run check      # every JS file parses + no stray control characters
-npm run dist       # build the Windows installer + portable exe
+npm run build      # tsc: server/ + tests/ -> build/
+npm run typecheck  # tsc --noEmit, no output written
+npm start          # build, then run the server
+npm run app        # build, then run the Electron app
+npm test           # build, then node --test over build/tests/
+npm run check      # no stray control characters; .js files also parse-checked
+npm run dist       # build, then the Windows installer + portable exe
 ```
+
+Every runnable script builds first, so a stale `build/` can never be what runs.
 
 ## Layout
 
-`server.js` is a two-line entry point. The real code is in `server/`:
+The server is **TypeScript** under `server/`, compiled to `build/server/`. Root `server.js`
+stays plain JavaScript — it is the entry point Electron requires, and it fails loudly if
+`build/` is missing rather than crashing obscurely.
+
+`build/` is the tsc output. `dist/` is electron-builder's output. They are different
+directories and neither is committed.
+
+Browser scripts in `public/js/` are still plain JavaScript, not compiled. They are served
+directly as classic scripts, so there is no bundler in the path.
+
+The real code is in `server/`:
 
 | Folder | Holds | Depends on |
 |---|---|---|
@@ -41,11 +55,18 @@ IIFE-plus-global pattern: `public/js/lib/app-client.js` exports `window.RovClien
 `ROV_USER_MEDIA_DIR`. Config reads those at require time. Import it earlier and the paths
 come out empty.
 
-**Write `require('./server/index')`, never `require('./server')`.** Node resolves files
-before folders, so the short form loads `server.js` into itself.
+**`config.ts` computes `ROOT_DIR` as two levels up**, because it runs from
+`build/server/config.js`, not `server/config.js`. Get this wrong and hero images, `public/`,
+and the data directory all resolve to nowhere — while the server still starts.
 
 **New folders must be added to `build.files` in `package.json`.** electron-builder lists
-paths explicitly. A missing entry builds a clean `.exe` that crashes on launch.
+paths explicitly, and it ships **`build/server/**/*`, not `server/**/*`** — the compiled
+output, never the TypeScript source. A missing entry builds a clean `.exe` that crashes on
+launch.
+
+**Keep `strict` on, and keep network input typed `unknown`.** `lib/sanitize.ts` takes
+`unknown` rather than `any` on purpose: `any` silences the checker exactly where the values
+are least trustworthy. Sanitizers are the boundary where `unknown` becomes a real type.
 
 **`sanitizeState` is a whitelist.** It rebuilds state from a fixed key list, so unknown keys
 are dropped on the next save. Old save files upgrade themselves for free — but it also means
@@ -75,10 +96,11 @@ appear anywhere.
 
 ## Where new work goes
 
-- new page → `public/<name>.html` + `public/js/<name>.js`, route in `server/http/pages.js`
-- new API → a new `server/http/api-<thing>.js`, mounted in `server/index.js`
+- new page → `public/<name>.html` + `public/js/<name>.js`, route in `server/http/pages.ts`
+- new API → a new `server/http/api-<thing>.ts`, mounted in `server/index.ts`
 - new rules → `server/domain/`, with tests in `tests/`
-- new persisted data → its own file under `DATA_DIR` and its own module in `server/store/`
+- new persisted data → its own module in `server/store/`; for tournament data that means a
+  new step appended to `server/store/migrations.ts` — never edit a released step
 
 ## Conventions
 

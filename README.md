@@ -174,8 +174,9 @@ docs/                       คู่มือเพิ่มเติม
 public/                     หน้าเว็บ, overlay, css, js, รูป
 public/images/heroes/       รูปฮีโร่
 public/js/lib/              โค้ดฝั่งหน้าเว็บที่ใช้ร่วมกันทุกหน้า
-server.js                   จุดเริ่ม (เรียก server/index.js)
-server/                     โค้ดเซิร์ฟเวอร์ แยกเป็นโมดูล
+server.js                   จุดเริ่ม (เรียก build/server/index.js)
+build/                      ผลลัพธ์จากคอมไพล์ TypeScript (ไม่ต้องแก้เอง)
+server/                     โค้ดเซิร์ฟเวอร์ TypeScript แยกเป็นโมดูล
 server/config.js            พอร์ต, โทเคน, ตำแหน่งโฟลเดอร์
 server/lib/                 ตัวช่วยพื้นฐาน (json, ตัวกรองค่า)
 server/domain/              กติกาของงาน: ฮีโร่, ดราฟต์, แมตช์, ธีม, ภาพ
@@ -191,12 +192,15 @@ LICENSE.md                  เงื่อนไขการใช้งาน
 INSTALL.md                  คู่มือติดตั้งแบบสั้น
 ```
 
-รันเทสต์และตรวจไฟล์:
+คอมไพล์ รันเทสต์ และตรวจไฟล์:
 
 ```bash
+npm run build
 npm test
 npm run check
 ```
+
+คำสั่ง `start`, `app`, `dist` สั่ง build ให้เองก่อนอยู่แล้ว ไม่ต้องรันเอง
 
 ## การปรับแต่ง
 

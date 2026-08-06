@@ -7,24 +7,68 @@
 // คีย์แปลกปลอมจึงถูกทิ้งตอนเซฟรอบถัดไป
 // ข้อมูลทัวร์นาเมนต์จึงต้องอยู่คนละไฟล์ ห้ามยัดมาไว้ใน state.json
 // ไม่งั้นเปิดด้วยเวอร์ชันเก่าทีเดียวข้อมูลหายทั้งหมด
+//
+// GameState ที่ export จากไฟล์นี้คือ "สัญญา" ที่ฝั่งหน้าเว็บใช้ด้วย
+// แก้รูปร่างเมื่อไหร่ ต้องไล่ดู public/js ด้วยเสมอ
 
-const { deepClone } = require('../lib/json');
-const { clampNumber, sanitizeText, normalizeArray } = require('../lib/sanitize');
-const { sanitizeHero } = require('./heroes');
-const { DRAFT_SEQUENCE, PICK_COUNT, BAN_COUNT, isSlotId, sanitizeTimer } = require('./draft');
-const {
+import { deepClone } from '../lib/json';
+import { clampNumber, sanitizeText, normalizeArray } from '../lib/sanitize';
+import { sanitizeHero } from './heroes';
+import type { TeamKey, SlotType } from './draft';
+import { DRAFT_SEQUENCE, PICK_COUNT, BAN_COUNT, isSlotId, sanitizeTimer } from './draft';
+import type { OverlaySize, Theme, Hotkeys } from './settings';
+import {
   DEFAULT_OVERLAY_SIZE,
   THEME_DEFAULTS,
   HOTKEY_DEFAULTS,
   sanitizeOverlaySize,
   sanitizeTheme,
   sanitizeHotkeys
-} = require('./settings');
-const { SKIN_SLOTS, sanitizeLogo, sanitizeSkin } = require('./media');
+} from './settings';
+import type { Logo, Skin, SkinSlot } from './media';
+import { SKIN_SLOTS, sanitizeLogo, sanitizeSkin } from './media';
 
-const TEAM_KEYS = ['teamBlue', 'teamRed'];
+export interface TeamState {
+  name: string;
+  score: number;
+  logo: Logo;
+  picks: (string | null)[];
+  bans: (string | null)[];
+  players: string[];
+}
 
-function emptyTeam(name) {
+export interface MatchInfo {
+  title: string;
+  tournament: string;
+}
+
+export interface GameState {
+  teamBlue: TeamState;
+  teamRed: TeamState;
+  currentPhase: 'PICK' | 'BAN';
+  timer: string;
+  draftPhaseIndex: number;
+  draftLabel: string;
+  draftActiveSlots: string[];
+  draftRunning: boolean;
+  overlaySize: OverlaySize;
+  overlayVisible: boolean;
+  theme: Theme;
+  hotkeys: Hotkeys;
+  skin: Skin;
+  matchInfo: MatchInfo;
+}
+
+export interface SlotOwner {
+  team: TeamKey;
+  type: SlotType;
+  index: number;
+}
+
+export const TEAM_KEYS: TeamKey[] = ['teamBlue', 'teamRed'];
+const SLOT_TYPES: SlotType[] = ['picks', 'bans'];
+
+function emptyTeam(name: string): TeamState {
   return {
     name,
     score: 0,
@@ -38,7 +82,19 @@ function emptyTeam(name) {
   };
 }
 
-const defaultState = {
+function emptySkin(): Skin {
+  const slots = {} as Record<SkinSlot, number>;
+  // 0 = ยังไม่มีภาพ, ตัวเลขอื่น = เวอร์ชันไว้กัน cache
+  // เติมจาก SKIN_SLOTS จะได้ไม่ต้องมาไล่แก้สองที่
+  (Object.keys(SKIN_SLOTS) as SkinSlot[]).forEach((key) => { slots[key] = 0; });
+  return {
+    enabled: false,     // ใช้ภาพที่อัปโหลดเป็นพื้นหลังหรือไม่
+    showPanels: true,   // ยังวาดกรอบ/พื้นหลังแบบเดิมของแอพอยู่หรือไม่
+    slots
+  };
+}
+
+export const defaultState: GameState = {
   teamBlue: emptyTeam('BLUE'),
   teamRed: emptyTeam('RED'),
   currentPhase: 'BAN',
@@ -53,27 +109,19 @@ const defaultState = {
   overlayVisible: true,
   theme: { ...THEME_DEFAULTS },
   hotkeys: deepClone(HOTKEY_DEFAULTS),
-  skin: {
-    enabled: false,     // ใช้ภาพที่อัปโหลดเป็นพื้นหลังหรือไม่
-    showPanels: true,   // ยังวาดกรอบ/พื้นหลังแบบเดิมของแอพอยู่หรือไม่
-    // 0 = ยังไม่มีภาพ, ตัวเลขอื่น = เวอร์ชันไว้กัน cache
-    // เติมจาก SKIN_SLOTS ตอนโหลด จะได้ไม่ต้องมาไล่แก้สองที่
-    slots: {}
-  },
+  skin: emptySkin(),
   matchInfo: {
     title: 'BLUE VS RED',
     tournament: 'ROV Tournament'
   }
 };
 
-Object.keys(SKIN_SLOTS).forEach((key) => { defaultState.skin.slots[key] = 0; });
-
-function isTeamKey(team) {
+export function isTeamKey(team: unknown): team is TeamKey {
   return team === 'teamBlue' || team === 'teamRed';
 }
 
-function sanitizeTeam(team, fallback) {
-  const source = team && typeof team === 'object' ? team : {};
+export function sanitizeTeam(team: unknown, fallback: TeamState): TeamState {
+  const source = (team && typeof team === 'object' ? team : {}) as Record<string, unknown>;
   return {
     name: sanitizeText(source.name, 24) || fallback.name,
     score: clampNumber(source.score, 0, 99),
@@ -89,17 +137,21 @@ function sanitizeTeam(team, fallback) {
 // A hero can only appear once in a draft. Once banned or picked by either
 // team it is gone, so the same name must never occupy two slots.
 // slotOwner is the one slot allowed to already hold it - the slot being edited.
-function isHeroTaken(state, hero, slotOwner) {
+export function isHeroTaken(
+  state: GameState,
+  hero: string | null,
+  slotOwner: SlotOwner | null
+): boolean {
   if (!hero) return false;
 
   return TEAM_KEYS.some((teamKey) => (
-    ['picks', 'bans'].some((type) => (
+    SLOT_TYPES.some((type) => (
       state[teamKey][type].some((value, index) => {
         if (value !== hero) return false;
-        const isOwnSlot = slotOwner &&
-          slotOwner.team === teamKey &&
-          slotOwner.type === type &&
-          slotOwner.index === index;
+        const isOwnSlot = Boolean(slotOwner) &&
+          slotOwner!.team === teamKey &&
+          slotOwner!.type === type &&
+          slotOwner!.index === index;
         return !isOwnSlot;
       })
     ))
@@ -108,11 +160,12 @@ function isHeroTaken(state, hero, slotOwner) {
 
 // Presets and hand-edited state files can still contain duplicates.
 // Keep the first occurrence and drop the rest so the invariant always holds.
-function dropDuplicateHeroes(state) {
-  const seen = new Set();
+export function dropDuplicateHeroes(state: GameState): GameState {
+  const seen = new Set<string>();
 
   TEAM_KEYS.forEach((teamKey) => {
-    ['bans', 'picks'].forEach((type) => {
+    // ลำดับสำคัญ: แบนก่อน แล้วค่อยเลือก ตัวที่เจอทีหลังถูกทิ้ง
+    (['bans', 'picks'] as SlotType[]).forEach((type) => {
       state[teamKey][type] = state[teamKey][type].map((hero) => {
         if (!hero) return null;
         if (seen.has(hero)) return null;
@@ -125,18 +178,24 @@ function dropDuplicateHeroes(state) {
   return state;
 }
 
-function sanitizeState(state) {
-  const source = state && typeof state === 'object' ? state : {};
+export function sanitizeState(state: unknown): GameState {
+  const source = (state && typeof state === 'object' ? state : {}) as Record<string, unknown>;
   const phaseIndex = clampNumber(source.draftPhaseIndex, -1, DRAFT_SEQUENCE.length);
   const phase = DRAFT_SEQUENCE[phaseIndex];
+  const matchInfo = (source.matchInfo || {}) as Record<string, unknown>;
+
   return dropDuplicateHeroes({
     teamBlue: sanitizeTeam(source.teamBlue, defaultState.teamBlue),
     teamRed: sanitizeTeam(source.teamRed, defaultState.teamRed),
     currentPhase: source.currentPhase === 'PICK' ? 'PICK' : 'BAN',
     timer: sanitizeTimer(source.timer || defaultState.timer),
     draftPhaseIndex: phaseIndex,
-    draftLabel: phaseIndex >= DRAFT_SEQUENCE.length ? 'coming soon' : sanitizeText(source.draftLabel || phase?.label || '', 32),
-    draftActiveSlots: Array.isArray(source.draftActiveSlots) ? source.draftActiveSlots.filter(isSlotId).slice(0, 2) : [],
+    draftLabel: phaseIndex >= DRAFT_SEQUENCE.length
+      ? 'coming soon'
+      : sanitizeText(source.draftLabel || phase?.label || '', 32),
+    draftActiveSlots: Array.isArray(source.draftActiveSlots)
+      ? (source.draftActiveSlots as unknown[]).filter(isSlotId).slice(0, 2)
+      : [],
     draftRunning: false,
     overlaySize: sanitizeOverlaySize(source.overlaySize),
     overlayVisible: source.overlayVisible !== false,
@@ -144,18 +203,8 @@ function sanitizeState(state) {
     hotkeys: sanitizeHotkeys(source.hotkeys),
     skin: sanitizeSkin(source.skin),
     matchInfo: {
-      title: sanitizeText(source.matchInfo?.title, 80) || defaultState.matchInfo.title,
-      tournament: sanitizeText(source.matchInfo?.tournament, 50) || defaultState.matchInfo.tournament
+      title: sanitizeText(matchInfo.title, 80) || defaultState.matchInfo.title,
+      tournament: sanitizeText(matchInfo.tournament, 50) || defaultState.matchInfo.tournament
     }
   });
 }
-
-module.exports = {
-  TEAM_KEYS,
-  defaultState,
-  isTeamKey,
-  sanitizeTeam,
-  sanitizeState,
-  isHeroTaken,
-  dropDuplicateHeroes
-};

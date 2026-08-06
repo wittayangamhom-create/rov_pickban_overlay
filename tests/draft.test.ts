@@ -1,6 +1,6 @@
-const test = require('node:test');
-const assert = require('node:assert');
-const {
+import test from 'node:test';
+import assert from 'node:assert';
+import {
   DRAFT_SEQUENCE,
   PICK_COUNT,
   BAN_COUNT,
@@ -11,17 +11,17 @@ const {
   parseTimeToSeconds,
   formatSeconds,
   sanitizeTimer
-} = require('../server/domain/draft');
+} from '../server/domain/draft';
 
 test('the draft sequence fills every pick and ban slot exactly once', () => {
-  const seen = new Map();
+  const seen = new Map<string, number>();
   DRAFT_SEQUENCE.forEach((phase) => {
     (phase.slots || []).forEach((slot) => {
       seen.set(slot, (seen.get(slot) || 0) + 1);
     });
   });
 
-  const expected = [];
+  const expected: string[] = [];
   ['blue', 'red'].forEach((side) => {
     for (let i = 0; i < PICK_COUNT; i += 1) expected.push(`${side}Pick${i}`);
     for (let i = 0; i < BAN_COUNT; i += 1) expected.push(`${side}Ban${i}`);

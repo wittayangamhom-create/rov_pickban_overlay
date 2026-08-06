@@ -9,14 +9,18 @@
 // บันทึกเกมย้อนหลังที่อ้างชื่อเดิมจึงห้ามเอามากรองผ่าน sanitizeHero ซ้ำ
 // ให้เก็บเป็นข้อความดิบไว้ ไม่งั้นสถิติของเก่าจะหายไปเงียบๆ
 
-const fs = require('fs');
-const path = require('path');
-const { HERO_IMAGE_DIR, APP_DATA_DIR } = require('../config');
-const { loadJson } = require('../lib/json');
+import fs from 'fs';
+import path from 'path';
+import { HERO_IMAGE_DIR, APP_DATA_DIR } from '../config';
+import { loadJson } from '../lib/json';
+
+export interface HeroesData {
+  heroes: string[];
+}
 
 const IMAGE_EXT = /\.(png|jpg|jpeg|webp)$/i;
 
-function listImageFiles(dir) {
+export function listImageFiles(dir: string): string[] {
   try {
     return fs.readdirSync(dir, { withFileTypes: true })
       .filter((entry) => entry.isFile())
@@ -28,25 +32,29 @@ function listImageFiles(dir) {
   }
 }
 
-function normalizeHeroesData(data) {
+export function normalizeHeroesData(data: unknown): HeroesData {
   const imageHeroes = listImageFiles(HERO_IMAGE_DIR)
     .map((name) => name.replace(IMAGE_EXT, ''));
-  let heroes = imageHeroes.length > 0 ? imageHeroes : (Array.isArray(data?.heroes) ? data.heroes : []);
-  heroes = heroes.filter((hero) => typeof hero === 'string' && hero.trim()).map((hero) => hero.trim());
+  const fromFile = (data as { heroes?: unknown })?.heroes;
+  const source: unknown[] = imageHeroes.length > 0
+    ? imageHeroes
+    : (Array.isArray(fromFile) ? fromFile : []);
+  const heroes = source
+    .filter((hero): hero is string => typeof hero === 'string' && hero.trim() !== '')
+    .map((hero) => hero.trim());
   return {
     heroes: Array.from(new Set(heroes)).sort((a, b) => a.localeCompare(b))
   };
 }
 
-const heroesData = normalizeHeroesData(
+export const heroesData: HeroesData = normalizeHeroesData(
   loadJson(path.join(APP_DATA_DIR, 'heroes.json'), { heroes: [] })
 );
-const heroSet = new Set(heroesData.heroes);
 
-function sanitizeHero(value) {
+export const heroSet: ReadonlySet<string> = new Set(heroesData.heroes);
+
+export function sanitizeHero(value: unknown): string | null {
   if (value === null || value === '') return null;
   if (typeof value !== 'string') return null;
   return heroSet.has(value) ? value : null;
 }
-
-module.exports = { heroesData, heroSet, sanitizeHero, listImageFiles, normalizeHeroesData };

@@ -3,23 +3,66 @@
 // เพดาน 128 ทีมถูกบังคับที่นี่ ไม่ใช่ที่หน้าเว็บ
 // หน้าเว็บควรกันไว้ด้วยเพื่อ UX ที่ดี แต่ห้ามเชื่อว่าหน้าเว็บกันแล้วพอ
 
-const { newId } = require('../domain/ids');
-const {
+import type { DatabaseSync } from 'node:sqlite';
+import { newId } from '../domain/ids';
+import type { TournamentFormat, TournamentStatus, BestOf } from '../domain/tournament';
+import {
   sanitizeTournamentInput,
   sanitizeStatus,
   canAddTeams,
   canUseFormat,
   maxTeamsFor
-} = require('../domain/tournament');
-const { sanitizeSeed } = require('../domain/team');
+} from '../domain/tournament';
+import type { Team } from '../domain/team';
+import { sanitizeSeed } from '../domain/team';
+import type { TeamStore } from './teams';
 
-function rowToTournament(row, teamCount) {
+export interface Tournament {
+  id: string;
+  name: string;
+  status: TournamentStatus;
+  format: TournamentFormat;
+  bestOf: BestOf;
+  note: string;
+  teamCount: number;
+  maxTeams: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// ทีมในทัวร์นาเมนต์ = ทีมจากทะเบียน บวกลำดับวางสาย
+export interface SeededTeam extends Team {
+  seed: number;
+}
+
+export type TournamentResult =
+  | { tournament: Tournament; error?: undefined }
+  | { error: string; tournament?: undefined };
+
+export type RosterResult =
+  | { ok: true; teamCount: number; error?: undefined }
+  | { error: string; limit?: number; ok?: undefined };
+
+export type SimpleResult = { ok: true; error?: undefined } | { error: string; ok?: undefined };
+
+interface TournamentRow {
+  id: string;
+  name: string;
+  status: string;
+  format: string;
+  best_of: number;
+  note: string;
+  created_at: number;
+  updated_at: number;
+}
+
+function rowToTournament(row: TournamentRow, teamCount: number): Tournament {
   return {
     id: row.id,
     name: row.name,
-    status: row.status,
-    format: row.format,
-    bestOf: row.best_of,
+    status: row.status as TournamentStatus,
+    format: row.format as TournamentFormat,
+    bestOf: row.best_of as BestOf,
     note: row.note,
     teamCount,
     maxTeams: maxTeamsFor(row.format),
@@ -28,7 +71,21 @@ function rowToTournament(row, teamCount) {
   };
 }
 
-function createTournamentStore(db, teamStore) {
+export interface TournamentStore {
+  get(id: string): Tournament | null;
+  list(): Tournament[];
+  create(input: unknown): TournamentResult;
+  update(id: string, input: unknown): TournamentResult;
+  setStatus(id: string, status: unknown): TournamentResult;
+  remove(id: string): SimpleResult;
+  teams(id: string): SeededTeam[];
+  teamCount(id: string): number;
+  addTeam(id: string, teamId: string, seed?: number): RosterResult;
+  removeTeam(id: string, teamId: string): RosterResult;
+  setSeed(id: string, teamId: string, seed: unknown): SimpleResult;
+}
+
+export function createTournamentStore(db: DatabaseSync, teamStore: TeamStore): TournamentStore {
   const q = {
     insert: db.prepare(
       'INSERT INTO tournaments (id, name, status, format, best_of, note, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
@@ -53,80 +110,81 @@ function createTournamentStore(db, teamStore) {
     setSeed: db.prepare('UPDATE tournament_teams SET seed = ? WHERE tournament_id = ? AND team_id = ?')
   };
 
-  const teamCountOf = (id) => q.countTeams.get(id).n;
+  const findRow = (id: string): TournamentRow | undefined => q.byId.get(id) as TournamentRow | undefined;
+  const teamCountOf = (id: string): number => (q.countTeams.get(id) as { n: number }).n;
+  const isMember = (id: string, teamId: string): boolean => q.hasTeam.get(id, teamId) !== undefined;
 
-  return {
+  const store: TournamentStore = {
     get(id) {
-      const row = q.byId.get(id);
+      const row = findRow(id);
       return row ? rowToTournament(row, teamCountOf(id)) : null;
     },
 
     list() {
-      return q.all.all().map((row) => rowToTournament(row, teamCountOf(row.id)));
+      return (q.all.all() as unknown as TournamentRow[])
+        .map((row) => rowToTournament(row, teamCountOf(row.id)));
     },
 
     create(input) {
       const checked = sanitizeTournamentInput(input);
-      if (checked.error) return checked;
+      if (checked.error !== undefined) return { error: checked.error };
 
       const id = newId('tournament');
       const now = Date.now();
       const { name, status, format, bestOf, note } = checked.tournament;
       q.insert.run(id, name, status, format, bestOf, note, now, now);
-      return { tournament: this.get(id) };
+      return { tournament: store.get(id) as Tournament };
     },
 
     update(id, input) {
-      const existing = q.byId.get(id);
-      if (!existing) return { error: 'Tournament not found' };
+      if (!findRow(id)) return { error: 'Tournament not found' };
 
       const checked = sanitizeTournamentInput(input);
-      if (checked.error) return checked;
+      if (checked.error !== undefined) return { error: checked.error };
 
       // เปลี่ยนรูปแบบทั้งที่ทีมเกินเพดานของรูปแบบใหม่ไม่ได้
       // เช่น มี 40 ทีมแล้วจะเปลี่ยนเป็นพบกันหมด (รับได้ 24)
-      const { format } = checked.tournament;
+      const { name, status, format, bestOf, note } = checked.tournament;
       const allowed = canUseFormat(format, teamCountOf(id));
       if (!allowed.ok) return { error: allowed.error };
 
-      const { name, status, bestOf, note } = checked.tournament;
       q.update.run(name, status, format, bestOf, note, Date.now(), id);
-      return { tournament: this.get(id) };
+      return { tournament: store.get(id) as Tournament };
     },
 
     // ปิดทัวร์นาเมนต์ / เปิดกลับมาแก้ต่อ
     setStatus(id, status) {
-      if (!q.byId.get(id)) return { error: 'Tournament not found' };
+      if (!findRow(id)) return { error: 'Tournament not found' };
       q.setStatus.run(sanitizeStatus(status), Date.now(), id);
-      return { tournament: this.get(id) };
+      return { tournament: store.get(id) as Tournament };
     },
 
     remove(id) {
-      if (!q.byId.get(id)) return { error: 'Tournament not found' };
+      if (!findRow(id)) return { error: 'Tournament not found' };
       q.remove.run(id);
       return { ok: true };
     },
 
     // ทีมที่ลงแข่ง พร้อมข้อมูลทีมเต็มจากทะเบียนกลาง
     teams(id) {
-      return q.teamIds.all(id)
-        .map((row) => {
+      const rows = q.teamIds.all(id) as unknown as { team_id: string; seed: number }[];
+      return rows
+        .map((row): SeededTeam | null => {
           const team = teamStore.get(row.team_id);
           return team ? { ...team, seed: row.seed } : null;
         })
-        .filter(Boolean);
+        .filter((team): team is SeededTeam => team !== null);
     },
 
     teamCount(id) {
       return teamCountOf(id);
     },
 
-    // คืน { ok: true } หรือ { error }
     addTeam(id, teamId, seed = 0) {
-      const tournament = q.byId.get(id);
+      const tournament = findRow(id);
       if (!tournament) return { error: 'Tournament not found' };
       if (!teamStore.get(teamId)) return { error: 'Team not found' };
-      if (q.hasTeam.get(id, teamId)) return { error: 'Team is already in this tournament' };
+      if (isMember(id, teamId)) return { error: 'Team is already in this tournament' };
 
       const room = canAddTeams(tournament.format, teamCountOf(id), 1);
       if (!room.ok) return { error: room.error, limit: room.limit };
@@ -136,18 +194,18 @@ function createTournamentStore(db, teamStore) {
     },
 
     removeTeam(id, teamId) {
-      if (!q.byId.get(id)) return { error: 'Tournament not found' };
-      if (!q.hasTeam.get(id, teamId)) return { error: 'Team is not in this tournament' };
+      if (!findRow(id)) return { error: 'Tournament not found' };
+      if (!isMember(id, teamId)) return { error: 'Team is not in this tournament' };
       q.removeTeam.run(id, teamId);
       return { ok: true, teamCount: teamCountOf(id) };
     },
 
     setSeed(id, teamId, seed) {
-      if (!q.hasTeam.get(id, teamId)) return { error: 'Team is not in this tournament' };
+      if (!isMember(id, teamId)) return { error: 'Team is not in this tournament' };
       q.setSeed.run(sanitizeSeed(seed), id, teamId);
       return { ok: true };
     }
   };
-}
 
-module.exports = { createTournamentStore };
+  return store;
+}

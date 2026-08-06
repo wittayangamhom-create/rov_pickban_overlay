@@ -11,31 +11,34 @@
 // openDatabase รับ path ได้ เพื่อให้เทสต์เปิดฐานใน ':memory:' ได้
 // ห้ามให้เทสต์ไปแตะไฟล์จริงของผู้ใช้
 
-const fs = require('fs');
-const path = require('path');
-const { DatabaseSync } = require('node:sqlite');
-const { TOURNAMENT_DB_PATH } = require('../config');
-const { MIGRATIONS } = require('./migrations');
+import fs from 'fs';
+import path from 'path';
+import { DatabaseSync } from 'node:sqlite';
+import { TOURNAMENT_DB_PATH } from '../config';
+import { MIGRATIONS } from './migrations';
 
-function migrate(db) {
-  const current = db.prepare('PRAGMA user_version').get().user_version;
+export type Database = DatabaseSync;
+
+export function migrate(db: DatabaseSync): void {
+  const row = db.prepare('PRAGMA user_version').get() as { user_version: number };
+  const current = row.user_version;
 
   for (let version = current; version < MIGRATIONS.length; version += 1) {
     db.exec('BEGIN');
     try {
-      db.exec(MIGRATIONS[version]);
+      db.exec(MIGRATIONS[version] as string);
       // user_version รับพารามิเตอร์ผูกค่าไม่ได้ ต้องต่อสตริง
       // ตัวเลขมาจาก index ของอาเรย์ในโค้ด ไม่ได้มาจากผู้ใช้ จึงปลอดภัย
       db.exec(`PRAGMA user_version = ${version + 1}`);
       db.exec('COMMIT');
     } catch (error) {
       db.exec('ROLLBACK');
-      throw new Error(`Migration ${version + 1} failed: ${error.message}`);
+      throw new Error(`Migration ${version + 1} failed: ${(error as Error).message}`);
     }
   }
 }
 
-function openDatabase(dbPath = TOURNAMENT_DB_PATH) {
+export function openDatabase(dbPath: string = TOURNAMENT_DB_PATH): DatabaseSync {
   if (dbPath !== ':memory:') {
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   }
@@ -53,18 +56,16 @@ function openDatabase(dbPath = TOURNAMENT_DB_PATH) {
 }
 
 // ตัวที่แอพใช้จริง เปิดครั้งเดียวตอนเรียกใช้ครั้งแรก
-let appDb = null;
+let appDb: DatabaseSync | null = null;
 
-function getDatabase() {
+export function getDatabase(): DatabaseSync {
   if (!appDb) appDb = openDatabase();
   return appDb;
 }
 
-function closeDatabase() {
+export function closeDatabase(): void {
   if (appDb) {
     appDb.close();
     appDb = null;
   }
 }
-
-module.exports = { openDatabase, getDatabase, closeDatabase, migrate };

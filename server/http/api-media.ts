@@ -4,32 +4,39 @@
 // ตรวจสามชั้น: ชื่อ slot ต้องอยู่ในตารางที่กำหนด, content-type ต้องเป็นภาพ
 // ที่รองรับ และ magic bytes ต้องตรงกับชนิดที่บอกมาจริงๆ
 
-const fs = require('fs');
-const express = require('express');
-const {
-  SKIN_SLOTS,
-  LOGO_SLOTS,
+import fs from 'fs';
+import express, { Router } from 'express';
+import type { Request } from 'express';
+import type { ImageExt } from '../domain/media';
+import {
   SKIN_DIR,
   LOGO_DIR,
   SKIN_MAX_BYTES,
   LOGO_MAX_BYTES,
   SKIN_TYPES,
   SKIN_MAGIC,
+  isSkinSlot,
+  isLogoSlot,
   skinFilePath,
   logoFilePath,
   removeSkinFiles,
   removeLogoFiles
-} = require('../domain/media');
-const { getState, emitState } = require('../store/live-state');
-const { requireControl } = require('./auth');
+} from '../domain/media';
+import { getState, emitState } from '../store/live-state';
+import { requireControl } from './auth';
 
-// คืน { ext } เมื่อผ่าน หรือ { status, error } เมื่อไม่ผ่าน
+type UploadCheck =
+  | { ext: ImageExt; body: Buffer; error?: undefined; status?: undefined }
+  | { status: number; error: string; ext?: undefined; body?: undefined };
+
+// คืน { ext, body } เมื่อผ่าน หรือ { status, error } เมื่อไม่ผ่าน
 // ใช้ร่วมกันทั้ง skin และโลโก้ เพราะกฎการตรวจไฟล์เหมือนกันเป๊ะ
-function validateUpload(req) {
-  const ext = SKIN_TYPES[String(req.get('content-type')).split(';')[0].trim()];
+function validateUpload(req: Request): UploadCheck {
+  const contentType = String(req.get('content-type')).split(';')[0]!.trim();
+  const ext = SKIN_TYPES[contentType];
   if (!ext) return { status: 415, error: 'Use a PNG, JPG or WEBP image' };
 
-  const body = req.body;
+  const body = req.body as unknown;
   if (!Buffer.isBuffer(body) || body.length === 0) {
     return { status: 400, error: 'Empty upload' };
   }
@@ -39,25 +46,30 @@ function validateUpload(req) {
   return { ext, body };
 }
 
-function mediaRoutes() {
+export function mediaRoutes(): Router {
   const router = express.Router();
-  const rawImage = (limit) => express.raw({ type: Object.keys(SKIN_TYPES), limit });
+  const rawImage = (limit: number) => express.raw({ type: Object.keys(SKIN_TYPES), limit });
 
   router.post('/api/skin/:slot', requireControl, rawImage(SKIN_MAX_BYTES), (req, res) => {
     const slot = req.params.slot;
-    if (!Object.prototype.hasOwnProperty.call(SKIN_SLOTS, slot)) {
-      return res.status(400).json({ error: 'Unknown skin slot' });
+    if (!isSkinSlot(slot)) {
+      res.status(400).json({ error: 'Unknown skin slot' });
+      return;
     }
 
     const checked = validateUpload(req);
-    if (checked.error) return res.status(checked.status).json({ error: checked.error });
+    if (checked.error !== undefined) {
+      res.status(checked.status).json({ error: checked.error });
+      return;
+    }
 
     try {
       fs.mkdirSync(SKIN_DIR, { recursive: true });
       removeSkinFiles(slot); // กันกรณีเปลี่ยนนามสกุล จะได้ไม่เหลือไฟล์เก่าค้าง
       fs.writeFileSync(skinFilePath(slot, checked.ext), checked.body);
     } catch (error) {
-      return res.status(500).json({ error: `Could not save image: ${error.message}` });
+      res.status(500).json({ error: `Could not save image: ${(error as Error).message}` });
+      return;
     }
 
     const state = getState();
@@ -69,8 +81,9 @@ function mediaRoutes() {
 
   router.delete('/api/skin/:slot', requireControl, (req, res) => {
     const slot = req.params.slot;
-    if (!Object.prototype.hasOwnProperty.call(SKIN_SLOTS, slot)) {
-      return res.status(400).json({ error: 'Unknown skin slot' });
+    if (!isSkinSlot(slot)) {
+      res.status(400).json({ error: 'Unknown skin slot' });
+      return;
     }
     removeSkinFiles(slot);
     const state = getState();
@@ -83,31 +96,39 @@ function mediaRoutes() {
   // และ magic bytes ต้องตรงกับชนิดที่บอกมาจริงๆ
   router.post('/api/team-logo/:team', requireControl, rawImage(LOGO_MAX_BYTES), (req, res) => {
     const team = req.params.team;
-    if (!Object.prototype.hasOwnProperty.call(LOGO_SLOTS, team)) {
-      return res.status(400).json({ error: 'Unknown team' });
+    if (!isLogoSlot(team)) {
+      res.status(400).json({ error: 'Unknown team' });
+      return;
     }
 
     const checked = validateUpload(req);
-    if (checked.error) return res.status(checked.status).json({ error: checked.error });
+    if (checked.error !== undefined) {
+      res.status(checked.status).json({ error: checked.error });
+      return;
+    }
 
     try {
       fs.mkdirSync(LOGO_DIR, { recursive: true });
       removeLogoFiles(team); // กันไฟล์นามสกุลเดิมค้างอยู่ตอนเปลี่ยนชนิดภาพ
       fs.writeFileSync(logoFilePath(team, checked.ext), checked.body);
     } catch (error) {
-      return res.status(500).json({ error: `Could not save logo: ${error.message}` });
+      res.status(500).json({ error: `Could not save logo: ${(error as Error).message}` });
+      return;
     }
 
     const state = getState();
     state[team].logo = { v: Date.now(), ext: checked.ext };
     emitState();
-    res.json({ ok: true, team, ext: checked.ext, bytes: checked.body.length, logo: state[team].logo });
+    res.json({
+      ok: true, team, ext: checked.ext, bytes: checked.body.length, logo: state[team].logo
+    });
   });
 
   router.delete('/api/team-logo/:team', requireControl, (req, res) => {
     const team = req.params.team;
-    if (!Object.prototype.hasOwnProperty.call(LOGO_SLOTS, team)) {
-      return res.status(400).json({ error: 'Unknown team' });
+    if (!isLogoSlot(team)) {
+      res.status(400).json({ error: 'Unknown team' });
+      return;
     }
     removeLogoFiles(team);
     const state = getState();
@@ -118,5 +139,3 @@ function mediaRoutes() {
 
   return router;
 }
-
-module.exports = { mediaRoutes };
