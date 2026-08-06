@@ -1,0 +1,205 @@
+// เทสต์ชั้นข้อมูลของทัวร์นาเมนต์ ใช้ฐานใน ':memory:' ทุกครั้ง
+// ห้ามแตะ tournament.db จริงของผู้ใช้
+const test = require('node:test');
+const assert = require('node:assert');
+
+const { openDatabase } = require('../server/store/db');
+const { createTeamStore } = require('../server/store/teams');
+const { createTournamentStore } = require('../server/store/tournaments');
+const { MAX_TEAMS, ROUND_ROBIN_MAX_TEAMS } = require('../server/domain/tournament');
+
+function freshStores() {
+  const db = openDatabase(':memory:');
+  const teams = createTeamStore(db);
+  const tournaments = createTournamentStore(db, teams);
+  return { db, teams, tournaments };
+}
+
+function makeTeams(teams, count, prefix = 'Team') {
+  return Array.from({ length: count }, (_, i) => {
+    const result = teams.create({ name: `${prefix} ${i + 1}` });
+    assert.ok(result.team, result.error);
+    return result.team;
+  });
+}
+
+test('migrations run and are idempotent across reopens', () => {
+  const { db } = freshStores();
+  const version = db.prepare('PRAGMA user_version').get().user_version;
+  assert.ok(version >= 1, 'schema version advanced');
+  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map((r) => r.name);
+  ['teams', 'team_players', 'tournaments', 'tournament_teams'].forEach((t) => {
+    assert.ok(tables.includes(t), `${t} exists`);
+  });
+});
+
+test('a team round-trips with its roster', () => {
+  const { teams } = freshStores();
+  const { team } = teams.create({
+    name: 'Buriram United',
+    tag: 'BRU',
+    players: [
+      { name: 'ZHAN', role: 'jungle', isCaptain: true },
+      { name: 'WETZ', role: 'mid' }
+    ]
+  });
+
+  const loaded = teams.get(team.id);
+  assert.strictEqual(loaded.name, 'Buriram United');
+  assert.strictEqual(loaded.tag, 'BRU');
+  assert.strictEqual(loaded.players.length, 5, 'roster always has five slots');
+  assert.strictEqual(loaded.players[0].name, 'ZHAN');
+  assert.strictEqual(loaded.players[0].isCaptain, true);
+  assert.strictEqual(loaded.players[4].name, '', 'empty slots stay empty');
+});
+
+test('only one captain survives', () => {
+  const { teams } = freshStores();
+  const { team } = teams.create({
+    name: 'X',
+    players: [{ name: 'A', isCaptain: true }, { name: 'B', isCaptain: true }, { name: 'C', isCaptain: true }]
+  });
+  assert.strictEqual(team.players.filter((p) => p.isCaptain).length, 1);
+});
+
+test('a team needs a name', () => {
+  const { teams } = freshStores();
+  assert.ok(teams.create({ name: '   ' }).error);
+  assert.ok(teams.create({}).error);
+});
+
+test('team ids are safe to use as filenames', () => {
+  const { teams } = freshStores();
+  const { isSafeMediaId } = require('../server/domain/media');
+  makeTeams(teams, 25).forEach((team) => {
+    assert.ok(isSafeMediaId(team.id), `${team.id} is filename-safe`);
+  });
+});
+
+// ---- TEST GOAL 1: ห้ามเกิน 128 ทีมต่อทัวร์นาเมนต์ ----
+
+test('a tournament accepts exactly 128 teams and refuses the 129th', () => {
+  const { teams, tournaments } = freshStores();
+  const { tournament } = tournaments.create({ name: 'Big Cup', format: 'single_elim' });
+  const roster = makeTeams(teams, MAX_TEAMS + 1);
+
+  for (let i = 0; i < MAX_TEAMS; i += 1) {
+    const result = tournaments.addTeam(tournament.id, roster[i].id);
+    assert.ok(result.ok, `team ${i + 1} should be accepted: ${result.error}`);
+  }
+  assert.strictEqual(tournaments.teamCount(tournament.id), MAX_TEAMS);
+
+  const overflow = tournaments.addTeam(tournament.id, roster[MAX_TEAMS].id);
+  assert.ok(overflow.error, 'the 129th team must be refused');
+  assert.match(overflow.error, /full|max/i);
+  assert.strictEqual(tournaments.teamCount(tournament.id), MAX_TEAMS, 'count unchanged after refusal');
+});
+
+test('round robin is capped lower than 128', () => {
+  const { teams, tournaments } = freshStores();
+  const { tournament } = tournaments.create({ name: 'RR', format: 'round_robin' });
+  const roster = makeTeams(teams, ROUND_ROBIN_MAX_TEAMS + 1);
+
+  for (let i = 0; i < ROUND_ROBIN_MAX_TEAMS; i += 1) {
+    assert.ok(tournaments.addTeam(tournament.id, roster[i].id).ok);
+  }
+  const overflow = tournaments.addTeam(tournament.id, roster[ROUND_ROBIN_MAX_TEAMS].id);
+  assert.ok(overflow.error, 'round robin must refuse past its own cap');
+  assert.strictEqual(overflow.limit, ROUND_ROBIN_MAX_TEAMS);
+});
+
+test('switching to a format with a lower cap is refused, not silently truncating', () => {
+  const { teams, tournaments } = freshStores();
+  const { tournament } = tournaments.create({ name: 'Cup', format: 'single_elim' });
+  makeTeams(teams, 30).forEach((team) => tournaments.addTeam(tournament.id, team.id));
+
+  const result = tournaments.update(tournament.id, { name: 'Cup', format: 'round_robin' });
+  assert.ok(result.error, '30 teams cannot become a round robin');
+  assert.strictEqual(tournaments.get(tournament.id).format, 'single_elim', 'format unchanged');
+  assert.strictEqual(tournaments.teamCount(tournament.id), 30, 'no team was dropped');
+});
+
+test('the same team cannot be added twice', () => {
+  const { teams, tournaments } = freshStores();
+  const { tournament } = tournaments.create({ name: 'Cup' });
+  const [team] = makeTeams(teams, 1);
+
+  assert.ok(tournaments.addTeam(tournament.id, team.id).ok);
+  assert.ok(tournaments.addTeam(tournament.id, team.id).error, 'duplicate entry refused');
+  assert.strictEqual(tournaments.teamCount(tournament.id), 1);
+});
+
+test('unknown ids are rejected rather than creating orphans', () => {
+  const { tournaments, teams } = freshStores();
+  const { tournament } = tournaments.create({ name: 'Cup' });
+  const [team] = makeTeams(teams, 1);
+
+  assert.ok(tournaments.addTeam('nope', team.id).error);
+  assert.ok(tournaments.addTeam(tournament.id, 'nope').error);
+});
+
+test('removing a team frees a slot', () => {
+  const { teams, tournaments } = freshStores();
+  const { tournament } = tournaments.create({ name: 'Cup' });
+  const roster = makeTeams(teams, 3);
+  roster.forEach((team) => tournaments.addTeam(tournament.id, team.id));
+
+  assert.ok(tournaments.removeTeam(tournament.id, roster[1].id).ok);
+  assert.strictEqual(tournaments.teamCount(tournament.id), 2);
+  assert.ok(tournaments.removeTeam(tournament.id, roster[1].id).error, 'removing twice is an error');
+});
+
+test('deleting a team removes it from every tournament it entered', () => {
+  const { teams, tournaments } = freshStores();
+  const a = tournaments.create({ name: 'A' }).tournament;
+  const b = tournaments.create({ name: 'B' }).tournament;
+  const [team] = makeTeams(teams, 1);
+
+  tournaments.addTeam(a.id, team.id);
+  tournaments.addTeam(b.id, team.id);
+  assert.strictEqual(tournaments.teamCount(a.id), 1);
+
+  teams.remove(team.id);
+  assert.strictEqual(tournaments.teamCount(a.id), 0, 'cascade removed it from A');
+  assert.strictEqual(tournaments.teamCount(b.id), 0, 'cascade removed it from B');
+});
+
+test('deleting a tournament leaves the team registry intact', () => {
+  const { teams, tournaments } = freshStores();
+  const { tournament } = tournaments.create({ name: 'Cup' });
+  const roster = makeTeams(teams, 4);
+  roster.forEach((team) => tournaments.addTeam(tournament.id, team.id));
+
+  tournaments.remove(tournament.id);
+  assert.strictEqual(teams.count(), 4, 'teams outlive the tournament they played in');
+  assert.strictEqual(tournaments.get(tournament.id), null);
+});
+
+test('status flips between active and finished, junk falls back to active', () => {
+  const { tournaments } = freshStores();
+  const { tournament } = tournaments.create({ name: 'Cup' });
+  assert.strictEqual(tournament.status, 'active');
+
+  assert.strictEqual(tournaments.setStatus(tournament.id, 'finished').tournament.status, 'finished');
+  assert.strictEqual(tournaments.setStatus(tournament.id, 'nonsense').tournament.status, 'active');
+});
+
+test('tournament reports how many slots its format allows', () => {
+  const { tournaments } = freshStores();
+  assert.strictEqual(tournaments.create({ name: 'A', format: 'single_elim' }).tournament.maxTeams, MAX_TEAMS);
+  assert.strictEqual(tournaments.create({ name: 'B', format: 'round_robin' }).tournament.maxTeams, ROUND_ROBIN_MAX_TEAMS);
+});
+
+test('teams come back ordered by seed', () => {
+  const { teams, tournaments } = freshStores();
+  const { tournament } = tournaments.create({ name: 'Cup' });
+  const roster = makeTeams(teams, 3);
+  tournaments.addTeam(tournament.id, roster[0].id, 3);
+  tournaments.addTeam(tournament.id, roster[1].id, 1);
+  tournaments.addTeam(tournament.id, roster[2].id, 2);
+
+  assert.deepStrictEqual(
+    tournaments.teams(tournament.id).map((t) => t.name),
+    ['Team 2', 'Team 3', 'Team 1']
+  );
+});

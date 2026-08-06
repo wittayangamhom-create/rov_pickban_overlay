@@ -24,6 +24,13 @@ const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
 const STATE_PATH = path.join(DATA_DIR, 'state.json');
 const PRESETS_PATH = path.join(DATA_DIR, 'presets.json');
 
+// ข้อมูลทัวร์นาเมนต์กับทีมอยู่ใน SQLite แยกจาก state.json / presets.json
+//
+// ที่ไม่ยัดรวมใน state.json เพราะ sanitizeState เก็บเฉพาะคีย์ที่รู้จัก
+// คีย์แปลกปลอมถูกทิ้งตอนเซฟรอบถัดไป เปิดด้วยเวอร์ชันเก่าทีเดียวข้อมูลหายหมด
+// อยู่คนละไฟล์แล้วเวอร์ชันเก่าจะมองไม่เห็น ไม่ไปยุ่ง ข้อมูลจึงรอด
+const TOURNAMENT_DB_PATH = path.join(DATA_DIR, 'tournament.db');
+
 // ที่เก็บภาพที่ผู้ใช้อัปโหลด (โลโก้ทีม + ภาพพื้นหลัง)
 //
 // ตอนแพ็กเป็น .exe โค้ดทั้งก้อนอยู่ใน app.asar ซึ่งเป็น "ไฟล์" ไม่ใช่โฟลเดอร์
@@ -45,6 +52,7 @@ module.exports = {
   PUBLIC_DIR,
   STATE_PATH,
   PRESETS_PATH,
+  TOURNAMENT_DB_PATH,
   USER_MEDIA_DIR,
   HERO_IMAGE_DIR
 };
