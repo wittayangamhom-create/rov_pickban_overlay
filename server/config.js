@@ -1,0 +1,50 @@
+// ค่าคงที่ระดับแอพ: พอร์ต, โทเคน, และตำแหน่งโฟลเดอร์ทั้งหมด
+//
+// โมดูลนี้อยู่ใน server/ แต่ไฟล์ข้อมูลกับ public/ อยู่ที่ราก
+// ทุก path จึงต้องอ้างจาก ROOT_DIR ไม่ใช่ __dirname ของไฟล์นี้
+//
+// อ่าน env ตอน require ห้าม cache ไว้ก่อนหน้านั้น
+// electron-main.js ตั้ง ROV_USER_DATA_DIR / ROV_USER_MEDIA_DIR
+// แล้วค่อย require server.js ถ้าอ่านเร็วกว่านั้นจะได้ค่าว่าง
+
+const path = require('path');
+
+const ROOT_DIR = path.join(__dirname, '..');
+
+const PORT = Number(process.env.PORT) || 3000;
+const HOST = process.env.HOST || '127.0.0.1';
+const CONTROL_TOKEN = process.env.CONTROL_TOKEN || '';
+
+// APP_DATA_DIR = ข้อมูลที่มากับตัวแอพ (heroes.json) อ่านอย่างเดียว
+// DATA_DIR     = ข้อมูลของผู้ใช้ เขียนได้ ตอนแพ็กเป็น exe จะย้ายออกนอก asar
+const APP_DATA_DIR = path.join(ROOT_DIR, 'data');
+const DATA_DIR = process.env.ROV_USER_DATA_DIR || APP_DATA_DIR;
+const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
+
+const STATE_PATH = path.join(DATA_DIR, 'state.json');
+const PRESETS_PATH = path.join(DATA_DIR, 'presets.json');
+
+// ที่เก็บภาพที่ผู้ใช้อัปโหลด (โลโก้ทีม + ภาพพื้นหลัง)
+//
+// ตอนแพ็กเป็น .exe โค้ดทั้งก้อนอยู่ใน app.asar ซึ่งเป็น "ไฟล์" ไม่ใช่โฟลเดอร์
+// เขียนไฟล์ลง __dirname/public/... จึงพังด้วย ENOTDIR
+// เหมือนกับ state/presets ที่ย้ายไป ROV_USER_DATA_DIR ภาพก็ต้องออกมาอยู่นอก
+// asar เช่นกัน ตอนรันจาก source (ไม่ได้ตั้ง env) ใช้ public/images ตามเดิม
+// ของเก่าที่มีอยู่แล้วจะได้ยังใช้ได้
+const USER_MEDIA_DIR = process.env.ROV_USER_MEDIA_DIR || path.join(PUBLIC_DIR, 'images');
+
+const HERO_IMAGE_DIR = path.join(PUBLIC_DIR, 'images', 'heroes');
+
+module.exports = {
+  ROOT_DIR,
+  PORT,
+  HOST,
+  CONTROL_TOKEN,
+  APP_DATA_DIR,
+  DATA_DIR,
+  PUBLIC_DIR,
+  STATE_PATH,
+  PRESETS_PATH,
+  USER_MEDIA_DIR,
+  HERO_IMAGE_DIR
+};

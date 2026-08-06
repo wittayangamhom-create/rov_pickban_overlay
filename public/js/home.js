@@ -6,11 +6,7 @@
 // เวลาจะเพิ่มโหมดจัดการทัวร์นาเมนต์ ให้เพิ่ม section ใหม่ใน home.html
 // แล้วเพิ่ม route กับหน้าเว็บของมัน ไม่ต้องแก้ไฟล์นี้
 
-const params = new URLSearchParams(window.location.search);
-const controlToken = params.get('token') || localStorage.getItem('rovControlToken') || '';
-if (controlToken) localStorage.setItem('rovControlToken', controlToken);
-
-const socket = io({ auth: { token: controlToken }, query: controlToken ? { token: controlToken } : {} });
+const { socket, withToken, absoluteUrl, showToast } = window.RovClient;
 
 // ขนาดหน้าจอเลือกที่ control panel หน้านี้แค่บอกว่า URL ไหนคู่กับขนาดไหน
 const SOURCES = [
@@ -18,17 +14,6 @@ const SOURCES = [
   { name: 'Overlay 1440p', path: '/overlay-1440', size: '2560 x 1440' },
   { name: 'Result', path: '/result', size: 'matches overlay size' }
 ];
-
-function withToken(url) {
-  if (!controlToken) return url;
-  return `${url}${url.includes('?') ? '&' : '?'}token=${encodeURIComponent(controlToken)}`;
-}
-
-function absoluteUrl(path) {
-  const url = new URL(path, window.location.origin);
-  if (controlToken) url.searchParams.set('token', controlToken);
-  return url.toString();
-}
 
 function setStatus(online, label) {
   const box = document.getElementById('status');
@@ -145,17 +130,6 @@ async function copyUrl(url) {
   } catch {
     showToast('Copy failed', 'red');
   }
-}
-
-function showToast(msg, type = 'green') {
-  const el = document.getElementById('toast_el');
-  if (!el) return;
-  const colors = { green: 'var(--green)', blue: 'var(--blue)', red: 'var(--red)' };
-  el.style.borderLeftColor = colors[type] || colors.green;
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(el._t);
-  el._t = setTimeout(() => el.classList.remove('show'), 2200);
 }
 
 function renderFoot() {

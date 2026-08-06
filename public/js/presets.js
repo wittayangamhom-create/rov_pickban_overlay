@@ -5,11 +5,7 @@
 //
 // ไฟล์นี้ยืนได้ด้วยตัวเอง ไม่พึ่ง control.js เหมือนหน้า design
 
-const params = new URLSearchParams(window.location.search);
-const controlToken = params.get('token') || localStorage.getItem('rovControlToken') || '';
-if (controlToken) localStorage.setItem('rovControlToken', controlToken);
-
-const socket = io({ auth: { token: controlToken }, query: controlToken ? { token: controlToken } : {} });
+const { socket, fetchJson, showToast } = window.RovClient;
 
 let details = [];
 let filter = '';
@@ -23,20 +19,6 @@ let editingState = null;
 const PLAYER_COUNT = 5;
 
 socket.on('connect_error', (error) => showToast(error.message || 'Connection error', 'red'));
-
-function withToken(url) {
-  if (!controlToken) return url;
-  return `${url}${url.includes('?') ? '&' : '?'}token=${encodeURIComponent(controlToken)}`;
-}
-
-async function fetchJson(url, options = {}) {
-  const headers = { ...(options.headers || {}) };
-  if (controlToken) headers.Authorization = `Bearer ${controlToken}`;
-  const response = await fetch(withToken(url), { ...options, headers });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || response.statusText);
-  return data;
-}
 
 // FORM ---------------------------------------------------------------
 
@@ -444,17 +426,6 @@ document.addEventListener('keydown', (event) => {
   if (!confirmResolve) return;
   if (event.key === 'Escape') { event.preventDefault(); confirmResolve(false); }
 });
-
-function showToast(msg, type = 'green') {
-  const el = document.getElementById('toast_el');
-  if (!el) return;
-  const colors = { green: 'var(--green)', blue: 'var(--blue)', red: 'var(--red)' };
-  el.style.borderLeftColor = colors[type] || colors.green;
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(el._t);
-  el._t = setTimeout(() => el.classList.remove('show'), 2200);
-}
 
 document.getElementById('presetSearch')?.addEventListener('input', (event) => {
   filter = event.target.value.trim().toLowerCase();

@@ -3,11 +3,7 @@
 // ตัวจับคู่และตัวแปลงชื่อปุ่มอยู่ที่ hotkey-utils.js ใช้ร่วมกับ control.js
 // หน้านี้ทำแค่บันทึกปุ่มที่กด แล้วส่งขึ้น server
 
-const params = new URLSearchParams(window.location.search);
-const controlToken = params.get('token') || localStorage.getItem('rovControlToken') || '';
-if (controlToken) localStorage.setItem('rovControlToken', controlToken);
-
-const socket = io({ auth: { token: controlToken }, query: controlToken ? { token: controlToken } : {} });
+const { controlToken, socket, showToast } = window.RovClient;
 
 const { ACTIONS, DEFAULTS, bindingLabel, sameBinding, bindingFromEvent, isModifierBinding } = window.HotkeyUtils;
 
@@ -136,17 +132,6 @@ document.getElementById('resetAll')?.addEventListener('click', () => {
   socket.emit('resetHotkeys');
   showToast('All hotkeys reset', 'blue');
 });
-
-function showToast(msg, type = 'green') {
-  const el = document.getElementById('toast_el');
-  if (!el) return;
-  const colors = { green: 'var(--green)', blue: 'var(--blue)', red: 'var(--red)' };
-  el.style.borderLeftColor = colors[type] || colors.green;
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(el._t);
-  el._t = setTimeout(() => el.classList.remove('show'), 2200);
-}
 
 render();
 fetch(controlToken ? `/api/state?token=${encodeURIComponent(controlToken)}` : '/api/state')

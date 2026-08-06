@@ -1,0 +1,93 @@
+const test = require('node:test');
+const assert = require('node:assert');
+const { defaultState, sanitizeState, isHeroTaken, dropDuplicateHeroes } = require('../server/domain/match');
+const { carryOverSettings, CARRIED_OVER_KEYS } = require('../server/domain/settings');
+const { heroesData } = require('../server/domain/heroes');
+
+const [HERO_A, HERO_B] = heroesData.heroes;
+
+test('sanitizeState fills every missing key from defaults (old save files still load)', () => {
+  // ไฟล์ state.json รุ่นเก่าไม่มี theme / hotkeys / skin / overlaySize / logo
+  const legacy = {
+    teamBlue: { name: 'FW', score: 0, picks: [], bans: [], players: ['ZHAN'] },
+    teamRed: { name: 'EA', score: 2, picks: [], bans: [], players: [] },
+    currentPhase: 'BAN',
+    matchInfo: { title: 'FW VS EA', tournament: 'RPL' }
+  };
+  const state = sanitizeState(legacy);
+
+  Object.keys(defaultState).forEach((key) => {
+    assert.ok(state[key] !== undefined, `${key} should be present after sanitize`);
+  });
+  assert.strictEqual(state.teamBlue.name, 'FW');
+  assert.strictEqual(state.teamRed.score, 2);
+  assert.strictEqual(state.teamBlue.players.length, 5);
+  assert.strictEqual(state.teamBlue.players[1], 'Player 2');
+  assert.deepStrictEqual(state.teamBlue.logo, { v: 0, ext: '' });
+});
+
+test('sanitizeState drops unknown keys - tournament data must live in its own file', () => {
+  const state = sanitizeState({ tournamentId: 'abc123', somethingElse: 1 });
+  assert.strictEqual(state.tournamentId, undefined);
+  assert.strictEqual(state.somethingElse, undefined);
+});
+
+test('sanitizeState never returns a running draft', () => {
+  assert.strictEqual(sanitizeState({ draftRunning: true }).draftRunning, false);
+});
+
+test('a hero can only occupy one slot in a draft', () => {
+  const state = sanitizeState({
+    teamBlue: { picks: [HERO_A, null, null, null, null], bans: [] },
+    teamRed: { picks: [], bans: [] }
+  });
+
+  assert.ok(isHeroTaken(state, HERO_A, null), 'already picked by blue');
+  assert.ok(!isHeroTaken(state, HERO_B, null), 'untouched hero is free');
+  assert.ok(
+    !isHeroTaken(state, HERO_A, { team: 'teamBlue', type: 'picks', index: 0 }),
+    'the slot that already holds it may keep it'
+  );
+  assert.strictEqual(isHeroTaken(state, null, null), false);
+});
+
+test('duplicates in a hand-edited file are reduced to the first occurrence', () => {
+  const state = sanitizeState({
+    teamBlue: { picks: [HERO_A, HERO_A, null, null, null], bans: [HERO_A, null, null, null] },
+    teamRed: { picks: [HERO_A, null, null, null, null], bans: [] }
+  });
+  dropDuplicateHeroes(state);
+
+  const all = [
+    ...state.teamBlue.picks, ...state.teamBlue.bans,
+    ...state.teamRed.picks, ...state.teamRed.bans
+  ].filter(Boolean);
+  assert.strictEqual(all.filter((h) => h === HERO_A).length, 1);
+});
+
+test('carryOverSettings keeps tool settings across a match change', () => {
+  const previous = sanitizeState({
+    overlaySize: '1440',
+    overlayVisible: false,
+    theme: { blue: '#123456' }
+  });
+  const next = carryOverSettings(sanitizeState(defaultState), previous);
+
+  CARRIED_OVER_KEYS.forEach((key) => {
+    assert.deepStrictEqual(next[key], previous[key], `${key} should carry over`);
+  });
+  // แต่ข้อมูลแมตช์ต้องกลับไปเป็นค่าเริ่มต้น
+  assert.strictEqual(next.teamBlue.name, defaultState.teamBlue.name);
+  assert.strictEqual(next.teamBlue.score, 0);
+});
+
+test('scores and names stay inside their limits', () => {
+  const state = sanitizeState({
+    teamBlue: { name: 'x'.repeat(100), score: 5000 },
+    teamRed: { name: '', score: -20 }
+  });
+  assert.strictEqual(state.teamBlue.name.length, 24);
+  assert.strictEqual(state.teamBlue.score, 99);
+  assert.strictEqual(state.teamRed.name, 'RED');
+  assert.strictEqual(state.teamRed.score, 0);
+});

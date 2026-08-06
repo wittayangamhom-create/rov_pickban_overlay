@@ -1,8 +1,6 @@
-const params = new URLSearchParams(window.location.search);
-const controlToken = params.get('token') || localStorage.getItem('rovControlToken') || '';
-if (controlToken) localStorage.setItem('rovControlToken', controlToken);
-
-const socket = io({ auth: { token: controlToken }, query: controlToken ? { token: controlToken } : {} });
+const { controlToken, socket, withToken, fetchJson, showToast } = window.RovClient;
+// ชื่อเดิมในไฟล์นี้ ใช้ตัวเดียวกับ absoluteUrl ของ app-client
+const overlayUrl = window.RovClient.absoluteUrl;
 
 let heroes = [];
 let draftSequence = [];
@@ -58,26 +56,6 @@ function valueOf(result) {
   return result.status === 'fulfilled' ? result.value : null;
 }
 
-async function fetchJson(url, options = {}) {
-  const headers = { ...(options.headers || {}) };
-  if (controlToken) headers.Authorization = `Bearer ${controlToken}`;
-  const response = await fetch(withToken(url), { ...options, headers });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || response.statusText);
-  return data;
-}
-
-function withToken(url) {
-  if (!controlToken) return url;
-  const joiner = url.includes('?') ? '&' : '?';
-  return `${url}${joiner}token=${encodeURIComponent(controlToken)}`;
-}
-
-function overlayUrl(path) {
-  const url = new URL(path, window.location.origin);
-  if (controlToken) url.searchParams.set('token', controlToken);
-  return url.toString();
-}
 
 // TEAM LOGOS ---------------------------------------------------------
 // Uploads the raw file with its own content-type, same shape as the skin
@@ -1030,17 +1008,6 @@ async function resetMatchState() {
   } catch (error) {
     showToast(error.message, 'red');
   }
-}
-
-function showToast(msg, type = 'green') {
-  const el = document.getElementById('toast_el');
-  if (!el) return;
-  const colors = { green: 'var(--green)', blue: 'var(--blue)', red: 'var(--red)' };
-  el.style.borderLeftColor = colors[type] || colors.green;
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(el._t);
-  el._t = setTimeout(() => el.classList.remove('show'), 2200);
 }
 
 boot();

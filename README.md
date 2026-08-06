@@ -173,11 +173,29 @@ data/                       รายชื่อฮีโร่และข้�
 docs/                       คู่มือเพิ่มเติม
 public/                     หน้าเว็บ, overlay, css, js, รูป
 public/images/heroes/       รูปฮีโร่
-server.js                   server หลัก
+public/js/lib/              โค้ดฝั่งหน้าเว็บที่ใช้ร่วมกันทุกหน้า
+server.js                   จุดเริ่ม (เรียก server/index.js)
+server/                     โค้ดเซิร์ฟเวอร์ แยกเป็นโมดูล
+server/config.js            พอร์ต, โทเคน, ตำแหน่งโฟลเดอร์
+server/lib/                 ตัวช่วยพื้นฐาน (json, ตัวกรองค่า)
+server/domain/              กติกาของงาน: ฮีโร่, ดราฟต์, แมตช์, ธีม, ภาพ
+server/store/               ข้อมูลที่มีสถานะ: state ที่ออกอากาศ, พรีเซ็ต
+server/services/            นาฬิกาดราฟต์
+server/http/                เส้นทาง HTTP และการกันสิทธิ์
+server/sockets/             คำสั่งที่มาทาง socket
+tests/                      เทสต์ (node --test)
+tools/                      สคริปต์ตรวจโค้ด
 electron-main.js            ตัวเปิดแอพ Electron
 package.json                scripts และ dependencies
 LICENSE.md                  เงื่อนไขการใช้งาน
 INSTALL.md                  คู่มือติดตั้งแบบสั้น
+```
+
+รันเทสต์และตรวจไฟล์:
+
+```bash
+npm test
+npm run check
 ```
 
 ## การปรับแต่ง

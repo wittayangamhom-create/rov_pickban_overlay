@@ -11,7 +11,8 @@
     "dist": "electron-builder --win --x64",
     "portable": "electron-builder --win portable --x64",
     "dev": "nodemon server.js",
-    "check": "node --check server.js && node --check public/js/control.js && node --check public/js/overlay.js && node --check public/js/result.js",
+    "check": "node tools/check-syntax.js",
+    "test": "node --test \"tests/**/*.test.js\"",
     "check-heroes": "node check-heroes.js"
   },
   "keywords": [
@@ -30,7 +31,8 @@
   "devDependencies": {
     "electron-builder": "^26.0.12",
     "electron": "^43.0.0",
-    "nodemon": "^2.0.22"
+    "nodemon": "^2.0.22",
+    "socket.io-client": "^4.8.3"
   },
   "build": {
     "appId": "com.rov.overlay.tool",
@@ -41,6 +43,7 @@
     "files": [
       "electron-main.js",
       "server.js",
+      "server/**/*",
       "LICENSE.md",
       "LICENSE.txt",
       "package.json",

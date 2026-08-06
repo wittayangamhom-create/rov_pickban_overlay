@@ -1,0 +1,237 @@
+// คำสั่งทั้งหมดที่ส่งมาทาง socket
+//
+// ทุกคำสั่งผ่าน controlEvent ซึ่งเช็คสิทธิ์ให้ก่อนเสมอ
+// ห้ามใช้ socket.on ตรงๆ กับคำสั่งที่แก้ state ไม่งั้นจะหลุดการตรวจสิทธิ์
+
+const { clampNumber, sanitizeText } = require('../lib/sanitize');
+const { sanitizeHero } = require('../domain/heroes');
+const {
+  PICK_COUNT,
+  BAN_COUNT,
+  isPickIndex,
+  isBanIndex,
+  sanitizeTimer,
+  parseTimeToSeconds
+} = require('../domain/draft');
+const { isTeamKey, isHeroTaken } = require('../domain/match');
+const {
+  THEME_DEFAULTS,
+  HOTKEY_DEFAULTS,
+  sanitizeOverlaySize,
+  sanitizeTheme,
+  sanitizeHotkeys
+} = require('../domain/settings');
+const { deepClone } = require('../lib/json');
+const { getState, emitState, pushUndo, popUndo } = require('../store/live-state');
+const {
+  setDraftSeconds,
+  stopDraftTimer,
+  startDraftPhase,
+  checkAndAdvancePhase,
+  resetDraft,
+  resumeDraft
+} = require('../services/draft-engine');
+const { isAuthorizedSocket } = require('../http/auth');
+
+function controlEvent(socket, eventName, handler) {
+  socket.on(eventName, (payload) => {
+    if (!isAuthorizedSocket(socket)) {
+      socket.emit('controlError', { message: 'Unauthorized control request' });
+      return;
+    }
+    handler(payload || {});
+  });
+}
+
+function registerHandlers(socket) {
+  console.log('Client connected:', socket.id);
+  socket.emit('stateUpdate', getState());
+
+  controlEvent(socket, 'updateTeamName', ({ team, name }) => {
+    if (!isTeamKey(team)) return;
+    const state = getState();
+    state[team].name = sanitizeText(name, 24) || state[team].name;
+    emitState();
+  });
+
+  controlEvent(socket, 'updateScore', ({ team, score }) => {
+    if (!isTeamKey(team)) return;
+    getState()[team].score = clampNumber(score, 0, 99);
+    emitState();
+  });
+
+  controlEvent(socket, 'updatePlayerName', ({ team, index, name }) => {
+    if (!isTeamKey(team) || !isPickIndex(index)) return;
+    getState()[team].players[index] = sanitizeText(name, 24) || `Player ${index + 1}`;
+    emitState();
+  });
+
+  controlEvent(socket, 'updatePick', ({ team, index, hero }) => {
+    if (!isTeamKey(team) || !isPickIndex(index)) return;
+    const state = getState();
+    const next = sanitizeHero(hero);
+    if (isHeroTaken(state, next, { team, type: 'picks', index })) {
+      socket.emit('controlError', { message: `${next} is already used in this draft` });
+      socket.emit('stateUpdate', state);
+      return;
+    }
+    pushUndo();
+    state[team].picks[index] = next;
+    emitState();
+    checkAndAdvancePhase();
+  });
+
+  controlEvent(socket, 'updateBan', ({ team, index, hero }) => {
+    if (!isTeamKey(team) || !isBanIndex(index)) return;
+    const state = getState();
+    const next = sanitizeHero(hero);
+    if (isHeroTaken(state, next, { team, type: 'bans', index })) {
+      socket.emit('controlError', { message: `${next} is already used in this draft` });
+      socket.emit('stateUpdate', state);
+      return;
+    }
+    pushUndo();
+    state[team].bans[index] = next;
+    emitState();
+    checkAndAdvancePhase();
+  });
+
+  controlEvent(socket, 'clearPick', ({ team, index }) => {
+    if (!isTeamKey(team) || !isPickIndex(index)) return;
+    pushUndo();
+    getState()[team].picks[index] = null;
+    emitState();
+  });
+
+  controlEvent(socket, 'clearBan', ({ team, index }) => {
+    if (!isTeamKey(team) || !isBanIndex(index)) return;
+    pushUndo();
+    getState()[team].bans[index] = null;
+    emitState();
+  });
+
+  controlEvent(socket, 'clearAll', () => {
+    pushUndo();
+    const state = getState();
+    state.teamBlue.picks = Array.from({ length: PICK_COUNT }, () => null);
+    state.teamBlue.bans = Array.from({ length: BAN_COUNT }, () => null);
+    state.teamRed.picks = Array.from({ length: PICK_COUNT }, () => null);
+    state.teamRed.bans = Array.from({ length: BAN_COUNT }, () => null);
+    emitState();
+  });
+
+  controlEvent(socket, 'undo', () => {
+    if (!popUndo()) {
+      socket.emit('controlError', { message: 'Nothing to undo' });
+      return;
+    }
+    emitState();
+  });
+
+  controlEvent(socket, 'updatePhase', (phase) => {
+    getState().currentPhase = phase === 'PICK' ? 'PICK' : 'BAN';
+    emitState();
+  });
+
+  controlEvent(socket, 'updateTimer', (timer) => {
+    const state = getState();
+    state.timer = sanitizeTimer(timer);
+    setDraftSeconds(parseTimeToSeconds(state.timer));
+    emitState();
+  });
+
+  controlEvent(socket, 'updateSkinOptions', (data) => {
+    const state = getState();
+    if (typeof data?.enabled === 'boolean') state.skin.enabled = data.enabled;
+    if (typeof data?.showPanels === 'boolean') state.skin.showPanels = data.showPanels;
+    emitState();
+  });
+
+  // เลือกขนาดครั้งเดียว ทุกหน้าที่เปิดอยู่จะสลับตามทันที
+  controlEvent(socket, 'updateOverlaySize', (data) => {
+    const size = typeof data === 'string' ? data : data?.size;
+    getState().overlaySize = sanitizeOverlaySize(size);
+    emitState();
+  });
+
+  // patch ทีละคีย์ หน้า design ส่งมาเฉพาะตัวที่เพิ่งลาก
+  // ค่าที่ไม่รู้จักถูก sanitizeTheme ตัดทิ้งเอง
+  controlEvent(socket, 'updateTheme', (data) => {
+    if (!data || typeof data !== 'object') return;
+    const state = getState();
+    state.theme = sanitizeTheme({ ...state.theme, ...data });
+    emitState();
+  });
+
+  controlEvent(socket, 'updateHotkeys', (data) => {
+    if (!data || typeof data !== 'object') return;
+    const state = getState();
+    state.hotkeys = sanitizeHotkeys({ ...state.hotkeys, ...data });
+    emitState();
+  });
+
+  controlEvent(socket, 'resetHotkeys', () => {
+    getState().hotkeys = deepClone(HOTKEY_DEFAULTS);
+    emitState();
+  });
+
+  controlEvent(socket, 'resetTheme', () => {
+    getState().theme = { ...THEME_DEFAULTS };
+    emitState();
+  });
+
+  // ส่ง visible มาเป็น true/false ก็ตั้งค่าตามนั้น ไม่ส่งมาคือสลับ
+  // ปุ่มบนหน้า control ส่งค่ามาตรงๆ ส่วนคีย์ลัดปล่อยให้ฝั่งนี้สลับให้
+  // เพราะถ้าเปิด control ไว้หลายเครื่อง ต่างเครื่องอาจเห็นสถานะไม่ตรงกัน
+  controlEvent(socket, 'setOverlayVisible', (data) => {
+    const state = getState();
+    const next = typeof data?.visible === 'boolean' ? data.visible : !state.overlayVisible;
+    state.overlayVisible = next;
+    emitState();
+  });
+
+  controlEvent(socket, 'updateMatchInfo', (data) => {
+    const state = getState();
+    state.matchInfo = {
+      title: sanitizeText(data.title, 80) || state.matchInfo.title,
+      tournament: sanitizeText(data.tournament, 50) || state.matchInfo.tournament
+    };
+    emitState();
+  });
+
+  controlEvent(socket, 'switchTeams', () => {
+    pushUndo();
+    const state = getState();
+    const tempTeam = deepClone(state.teamBlue);
+    state.teamBlue = deepClone(state.teamRed);
+    state.teamRed = tempTeam;
+    emitState();
+  });
+
+  controlEvent(socket, 'draftStart', () => startDraftPhase(0));
+  controlEvent(socket, 'draftNext', () => startDraftPhase(getState().draftPhaseIndex + 1));
+  controlEvent(socket, 'draftPrev', () => startDraftPhase(Math.max(0, getState().draftPhaseIndex - 1)));
+
+  controlEvent(socket, 'draftPause', () => {
+    stopDraftTimer();
+    emitState();
+  });
+
+  controlEvent(socket, 'draftResume', () => resumeDraft());
+
+  controlEvent(socket, 'draftReset', () => resetDraft());
+
+  controlEvent(socket, 'swapPicks', ({ team, index1, index2 }) => {
+    if (!isTeamKey(team) || !isPickIndex(index1) || !isPickIndex(index2)) return;
+    pushUndo();
+    const picks = getState()[team].picks;
+    [picks[index1], picks[index2]] = [picks[index2], picks[index1]];
+    emitState();
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+}
+
+module.exports = { controlEvent, registerHandlers };

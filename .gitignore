@@ -43,3 +43,6 @@ public/images/skins/*
 # Keep hero and team images committed when preparing a public release.
 # public/images/heroes/*.png
 # public/images/team-logos/*.png
+__oracle.js
+__original-server.js
+__difftest*/
