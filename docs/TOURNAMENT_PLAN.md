@@ -221,8 +221,8 @@ pattern already in `public/js/overlay.js`.
   caster drive the draft while OBS has focus. The app's own hotkeys page
   currently implies this is impossible — true for a browser page, not for the
   Electron main process.
-- **Merge to `main`.** Four commits sit on `feat/tournament-upgrade`, unpushed.
-  Decide whether to merge before Phase 2 or keep accumulating.
+- **Merge to `main`.** Seven commits sit on `feat/tournament-upgrade`, unpushed.
+  Phases 0–2 are verified and independently useful; the diff only grows from here.
 - **Test goals 2–4** (game modes consistent, no overlapping random matches,
   room for future development) land with Phase 4. Goal 1 (128-team cap) is done
   and tested.
@@ -251,6 +251,11 @@ Each of these cost real debugging time. They are also in `CLAUDE.md`.
   it against the live roster.
 - **`switchTeams` swaps sides wholesale.** Side-split statistics need the side
   recorded at capture time.
+- **`/tournament/:id` sits a level deeper than every other page.** Its HTML must
+  use absolute `/js/…` and `/css/…` paths; a relative `js/x.js` resolves to
+  `/tournament/js/x.js` and 404s. Covered by a test in `tournament-api.test.ts`.
+- **Closing a SQLite database before deleting its folder** — Windows refuses the
+  delete while WAL handles are open. Test cleanup calls `closeDatabase()` first.
 
 ---
 
