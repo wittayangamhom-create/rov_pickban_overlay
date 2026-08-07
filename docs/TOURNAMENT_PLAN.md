@@ -23,7 +23,7 @@ Phase 5 is committed locally on top.
 | `bf76d9e` | Phase 2 — home is the tournament list, `/tournament/:id` detail page |
 | `16fe9bb` | Phase 3 — team registry UI, per-team logos, rosters, cap in the UI |
 | `a3cf985` | Phase 4 — bracket generation, random draw, series results |
-| _pending_ | Phase 5 — match to control panel, live pointer, **draft capture** |
+| `72ddb6f` | Phase 5 — match to control panel, live pointer, **draft capture** |
 
 Current state: **0 type errors under `strict`, 103 tests passing.** Creating a
 tournament, adding teams, editing rosters, uploading logos, drawing a bracket,
@@ -222,7 +222,7 @@ on read rather than maintaining incremental counters. Broadcast to a Socket.IO
 | 2 | Home becomes the tournament list; `/tournament/:id` | done `bf76d9e` |
 | 3 | Team registry UI, logos, rosters, 128 cap in the UI | done `16fe9bb` |
 | 4 | Formats, bracket generation, random matching | done `a3cf985` (no double elim) |
-| 5 | Match → control panel, live pointer, draft capture | done |
+| 5 | Match → control panel, live pointer, draft capture | done `72ddb6f` |
 | 6 | `/teams` directory and `/teams/:id` profile with history | **next** |
 | 7 | Team-list overlay with staggered slide-in | |
 | 8 | Pick/ban analytics, live, per tournament and per team | |
