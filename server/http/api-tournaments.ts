@@ -86,5 +86,64 @@ export function tournamentRoutes(): Router {
     res.json({ ok: true });
   });
 
+  // ROSTER ------------------------------------------------------------
+  //
+  // เพดานทีมถูกบังคับที่ชั้น store ตรงนี้แค่แปลงเป็น status
+  // เต็มแล้ว = 409 Conflict ไม่ใช่ 400 เพราะคำขอถูกต้องทุกอย่าง
+  // แค่สถานะตอนนี้ของทัวร์นาเมนต์ไม่รับเพิ่มแล้ว หน้าเว็บจะได้แยกกรณีถูก
+
+  router.get('/api/tournaments/:id/teams', (req, res) => {
+    const { tournaments } = getStores();
+    if (!tournaments.get(req.params.id)) {
+      res.status(404).json({ error: 'Tournament not found' });
+      return;
+    }
+    res.json({ teams: tournaments.teams(req.params.id) });
+  });
+
+  router.post('/api/tournaments/:id/teams', requireControl, (req, res) => {
+    const body = (req.body || {}) as { teamId?: unknown; seed?: unknown };
+    const { tournaments } = getStores();
+    const result = tournaments.addTeam(req.params.id, String(body.teamId || ''), body.seed as number);
+
+    if (result.error !== undefined) {
+      const status = NOT_FOUND.test(result.error) ? 404 : (result.limit !== undefined ? 409 : 400);
+      res.status(status).json({ error: result.error, limit: result.limit });
+      return;
+    }
+    res.json({
+      ok: true,
+      teamCount: result.teamCount,
+      tournament: tournaments.get(req.params.id),
+      teams: tournaments.teams(req.params.id)
+    });
+  });
+
+  router.delete('/api/tournaments/:id/teams/:teamId', requireControl, (req, res) => {
+    const { tournaments } = getStores();
+    const result = tournaments.removeTeam(req.params.id, req.params.teamId);
+    if (result.error !== undefined) {
+      res.status(404).json({ error: result.error });
+      return;
+    }
+    res.json({
+      ok: true,
+      teamCount: result.teamCount,
+      tournament: tournaments.get(req.params.id),
+      teams: tournaments.teams(req.params.id)
+    });
+  });
+
+  router.put('/api/tournaments/:id/teams/:teamId/seed', requireControl, (req, res) => {
+    const body = (req.body || {}) as { seed?: unknown };
+    const { tournaments } = getStores();
+    const result = tournaments.setSeed(req.params.id, req.params.teamId, body.seed);
+    if (result.error !== undefined) {
+      res.status(404).json({ error: result.error });
+      return;
+    }
+    res.json({ ok: true, teams: tournaments.teams(req.params.id) });
+  });
+
   return router;
 }

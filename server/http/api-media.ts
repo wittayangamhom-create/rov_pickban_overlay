@@ -6,15 +6,11 @@
 
 import fs from 'fs';
 import express, { Router } from 'express';
-import type { Request } from 'express';
-import type { ImageExt } from '../domain/media';
 import {
   SKIN_DIR,
   LOGO_DIR,
   SKIN_MAX_BYTES,
   LOGO_MAX_BYTES,
-  SKIN_TYPES,
-  SKIN_MAGIC,
   isSkinSlot,
   isLogoSlot,
   skinFilePath,
@@ -24,31 +20,10 @@ import {
 } from '../domain/media';
 import { getState, emitState } from '../store/live-state';
 import { requireControl } from './auth';
-
-type UploadCheck =
-  | { ext: ImageExt; body: Buffer; error?: undefined; status?: undefined }
-  | { status: number; error: string; ext?: undefined; body?: undefined };
-
-// คืน { ext, body } เมื่อผ่าน หรือ { status, error } เมื่อไม่ผ่าน
-// ใช้ร่วมกันทั้ง skin และโลโก้ เพราะกฎการตรวจไฟล์เหมือนกันเป๊ะ
-function validateUpload(req: Request): UploadCheck {
-  const contentType = String(req.get('content-type')).split(';')[0]!.trim();
-  const ext = SKIN_TYPES[contentType];
-  if (!ext) return { status: 415, error: 'Use a PNG, JPG or WEBP image' };
-
-  const body = req.body as unknown;
-  if (!Buffer.isBuffer(body) || body.length === 0) {
-    return { status: 400, error: 'Empty upload' };
-  }
-  if (!SKIN_MAGIC[ext](body)) {
-    return { status: 400, error: 'File contents do not match its type' };
-  }
-  return { ext, body };
-}
+import { validateUpload, rawImage } from './upload';
 
 export function mediaRoutes(): Router {
   const router = express.Router();
-  const rawImage = (limit: number) => express.raw({ type: Object.keys(SKIN_TYPES), limit });
 
   router.post('/api/skin/:slot', requireControl, rawImage(SKIN_MAX_BYTES), (req, res) => {
     const slot = req.params.slot;

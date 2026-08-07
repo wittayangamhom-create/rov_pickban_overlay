@@ -347,3 +347,87 @@ body {
   .topnav { margin-left: 0; width: 100%; }
   .src-name { flex: 1 1 100%; }
 }
+
+/* TEAM CARDS ------------------------------------------------------- */
+
+.team {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 13px 15px;
+  margin-bottom: 9px;
+}
+.team-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+.team-logo {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: var(--s3);
+  border: 1px solid var(--border2);
+  object-fit: contain;
+  display: block;
+}
+.team-logo.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--hf);
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+}
+
+.team-id { flex: 1; min-width: 150px; display: flex; flex-direction: column; gap: 4px; }
+.team-name {
+  font-family: var(--hf);
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #dbeafe;
+  word-break: break-word;
+}
+.team-sub { display: flex; gap: 6px; flex-wrap: wrap; }
+.team-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.team-edit {
+  border-top: 1px solid var(--border);
+  margin-top: 12px;
+  padding-top: 12px;
+}
+.player-row { display: flex; gap: 8px; align-items: center; margin-bottom: 7px; flex-wrap: wrap; }
+.player-row .slot {
+  flex: 0 0 22px;
+  font-family: var(--hf);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+  text-align: center;
+}
+.player-row input[type="text"] {
+  background: var(--s3);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 7px 9px;
+  color: var(--text);
+  font-family: var(--bf);
+  font-size: 13px;
+  outline: none;
+}
+.player-row input.pname { flex: 1; min-width: 130px; }
+.player-row input.prole { flex: 0 0 110px; }
+.player-row input[type="text"]:focus { border-color: var(--blue); }
+.player-row label.cap {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--muted2);
+  cursor: pointer;
+  white-space: nowrap;
+}

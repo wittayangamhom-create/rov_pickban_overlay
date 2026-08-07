@@ -21,17 +21,19 @@ conversation history, everything needed to continue is here or in `CLAUDE.md`.
 | `8f57759` | TypeScript conversion of `server/` and `tests/` |
 | `7b00e06` | This document brought up to date |
 | `bf76d9e` | Phase 2 — home is the tournament list, `/tournament/:id` detail page |
+| _pending_ | Phase 3 — team registry UI, per-team logos, rosters, cap in the UI |
 
-Current state: **0 type errors under `strict`, 45 tests passing, packaged
-`.exe` verified correct.** Creating a tournament, editing it and deleting it
-all work end to end in the browser.
+Current state: **0 type errors under `strict`, 56 tests passing, packaged
+`.exe` verified correct.** Creating a tournament, adding teams from the
+registry or inline, editing rosters, uploading team logos and deleting all work
+end to end in the browser.
 
 `tournament.db` is created on first use of a tournament feature, not at
 startup, so anyone using only the overlay never grows a database file. It is
 gitignored — it is user data, not source.
 
-**Next up: Phase 3** — the team registry UI. The tournament page currently
-shows the roster count and cap but has no way to add teams.
+**Next up: Phase 4** — bracket generation and random matching. The roster is
+now fillable, so there are teams to draw against each other.
 
 ---
 
@@ -120,7 +122,14 @@ that depend on them.
 
 Team ids are generated server-side (`server/domain/ids.ts`) and validated with
 `isSafeMediaId` before being used as a filename. Logos live at
-`media/team-logos/<teamId>.<ext>`.
+`media/team-logos/<teamId>.<ext>`, alongside the live match's `blue-team` and
+`red-team` slot logos.
+
+Sharing that folder is safe because the two naming schemes cannot collide —
+slot logos are fixed words, registry logos are `t` + hex — but `isTeamLogoId`
+rejects the reserved slot names anyway, in case the id format ever changes.
+A test creates a team literally named `../../evil name` and asserts the file
+still lands as `<id>.png`.
 
 ---
 
@@ -197,8 +206,8 @@ on read rather than maintaining incremental counters. Broadcast to a Socket.IO
 | — | TypeScript conversion | done `8f57759` |
 | 1 | Tournament + team data layer (SQLite) | done `168e21b` |
 | 2 | Home becomes the tournament list; `/tournament/:id` | done `bf76d9e` |
-| 3 | Team registry UI, logos, rosters, 128 cap in the UI | **next** |
-| 4 | Formats, bracket generation, random matching | |
+| 3 | Team registry UI, logos, rosters, 128 cap in the UI | done |
+| 4 | Formats, bracket generation, random matching | **next** |
 | 5 | Match → control panel, live-match pointer, results write back | |
 | 6 | `/teams` directory and `/teams/:id` profile with history | |
 | 7 | Team-list overlay with staggered slide-in | |
@@ -213,10 +222,13 @@ pattern already in `public/js/overlay.js`.
 ## 8. Open items
 
 - **A relative asset path on `/tournament/:id` breaks silently** — see §9. Any new nested page must use absolute `/js/` and `/css/` paths.
-- **`public/js/` is not TypeScript.** Types stop at the network boundary. Doing
-  it needs a second tsconfig (browser target, no module syntax, globals like
-  `window.RovClient`) and a serving strategy for the output. Worth doing before
-  the tournament pages grow, since that is where most new UI code will live.
+- **`public/js/` is not TypeScript, and it has now cost a real bug.** Phase 3
+  shipped `tournament.js` referencing `controlToken` without destructuring it
+  from `window.RovClient`. Logo upload threw `ReferenceError`, the `catch`
+  turned it into a toast, and it looked like an upload failure. A compiler would
+  have caught it before the browser did. Converting needs a second tsconfig
+  (browser target, no module syntax, `window.RovClient` globals) and a serving
+  strategy for the output. This is the strongest remaining argument for doing it.
 - **Global hotkeys via Electron `globalShortcut`.** Agreed but not built. Lets a
   caster drive the draft while OBS has focus. The app's own hotkeys page
   currently implies this is impossible — true for a browser page, not for the

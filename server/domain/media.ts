@@ -105,6 +105,29 @@ export function removeLogoFiles(team: LogoSlot): void {
   });
 }
 
+// โลโก้ของทีมในทะเบียน (คนละชุดกับช่องน้ำเงิน/แดงของแมตช์ที่ออกอากาศ)
+//
+// อยู่โฟลเดอร์เดียวกันได้ เพราะชื่อไฟล์คนละรูปแบบกันโดยสิ้นเชิง:
+// ช่องของแมตช์ = 'blue-team' / 'red-team' ส่วนทีมในทะเบียน = 't' + เลขฐานสิบหก
+// แต่ก็ยังกันไว้อีกชั้นด้วย isTeamLogoId เผื่อวันหลังมีคนแก้รูปแบบ id
+const RESERVED_LOGO_NAMES = new Set<string>(Object.values(LOGO_SLOTS));
+
+export function isTeamLogoId(value: unknown): value is string {
+  return isSafeMediaId(value) && !RESERVED_LOGO_NAMES.has(value);
+}
+
+export function teamLogoFilePath(teamId: string, ext: ImageExt): string {
+  if (!isTeamLogoId(teamId)) throw new Error(`Unsafe team logo id: ${teamId}`);
+  return path.join(LOGO_DIR, `${teamId}.${ext}`);
+}
+
+export function removeTeamLogoFiles(teamId: string): void {
+  if (!isTeamLogoId(teamId)) return;
+  IMAGE_EXTS.forEach((ext) => {
+    try { fs.unlinkSync(teamLogoFilePath(teamId, ext)); } catch { /* ไม่มีไฟล์ก็ข้ามไป */ }
+  });
+}
+
 // นามสกุลต้องเป็นค่าที่รู้จักเท่านั้น เพราะถูกเอาไปต่อเป็นชื่อไฟล์
 export function sanitizeLogo(value: unknown): Logo {
   const source = (value && typeof value === 'object' ? value : {}) as { v?: unknown; ext?: unknown };

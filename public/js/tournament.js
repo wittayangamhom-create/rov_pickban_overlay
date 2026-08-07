@@ -6,13 +6,17 @@
 // ทุกอย่างในหน้านี้ประกอบด้วย textContent / value ไม่มีการต่อ innerHTML
 // เพราะชื่อทัวร์นาเมนต์กับโน้ตเป็นข้อความที่ผู้ใช้พิมพ์เอง
 
-const { socket, fetchJson, absoluteUrl, withToken, showToast } = window.RovClient;
+// controlToken ต้องมีด้วย ใช้ตอนอัปโหลดโลโก้ ซึ่งส่ง body เป็นไฟล์ดิบ
+// จึงใช้ fetchJson (ที่แนบ header ให้เอง) ไม่ได้ ต้องประกอบ header เอง
+const { controlToken, socket, fetchJson, absoluteUrl, withToken, showToast } = window.RovClient;
 
 // /tournament/g3a1b2c3  ->  g3a1b2c3
 const tournamentId = decodeURIComponent(window.location.pathname.split('/').filter(Boolean)[1] || '');
 
 let options = null;
 let current = null;   // ทัวร์นาเมนต์ที่โหลดมาล่าสุด ใช้ตอนกด REVERT
+let roster = [];      // ทีมที่ลงแข่งในทัวร์นาเมนต์นี้
+let registry = [];    // ทีมทั้งหมดในทะเบียนกลาง ไว้ใส่ใน dropdown
 
 // ขนาดหน้าจอเลือกที่ control panel หน้านี้แค่บอกว่า URL ไหนคู่กับขนาดไหน
 const SOURCES = [
@@ -97,13 +101,36 @@ function renderFormatHint() {
   }
 }
 
+// โลโก้: v = 0 คือยังไม่มีภาพ ตัวเลขอื่นคือเวลาที่อัปโหลด ใช้กัน cache
+function logoImage(team) {
+  if (team.logo?.v && team.logo?.ext) {
+    const img = document.createElement('img');
+    img.className = 'team-logo';
+    img.alt = '';
+    img.src = `/images/team-logos/${encodeURIComponent(team.id)}.${team.logo.ext}?v=${team.logo.v}`;
+    return img;
+  }
+  const box = document.createElement('div');
+  box.className = 'team-logo placeholder';
+  box.textContent = (team.tag || team.name || '?').slice(0, 3).toUpperCase();
+  return box;
+}
+
 function renderTeams(t, teams) {
+  roster = teams;
+
   const wrap = document.getElementById('teamBadges');
   wrap.textContent = '';
-  wrap.appendChild(badge(
-    `${t.teamCount} / ${t.maxTeams} teams`,
-    t.teamCount >= t.maxTeams ? 'full' : 'count'
-  ));
+  const full = t.teamCount >= t.maxTeams;
+  wrap.appendChild(badge(`${t.teamCount} / ${t.maxTeams} teams`, full ? 'full' : 'count'));
+
+  // เต็มแล้วก็ปิดปุ่มไปเลย พร้อมบอกเหตุผลที่ tooltip
+  // เซิร์ฟเวอร์ก็ปฏิเสธอยู่แล้ว แต่ปุ่มที่กดไม่ได้ชัดกว่าปุ่มที่กดแล้วขึ้น error
+  const addBtn = document.getElementById('addTeamBtn');
+  addBtn.disabled = full;
+  addBtn.style.opacity = full ? '0.45' : '';
+  addBtn.style.cursor = full ? 'not-allowed' : '';
+  addBtn.title = full ? `This tournament is full (${t.maxTeams} teams max)` : '';
 
   const body = document.getElementById('teamsBody');
   body.textContent = '';
@@ -111,37 +138,219 @@ function renderTeams(t, teams) {
   if (teams.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'empty';
-    empty.textContent =
-      `No teams in this tournament yet. This format holds up to ${t.maxTeams} teams. ` +
-      'Adding and editing teams arrives with the team registry.';
+    empty.textContent = `No teams yet. This format holds up to ${t.maxTeams} teams.`;
     body.appendChild(empty);
     return;
   }
 
-  const list = document.createElement('div');
-  list.className = 'tlist';
-  teams.forEach((team) => {
-    const card = document.createElement('div');
-    card.className = 'tcard';
+  teams.forEach((team) => body.appendChild(teamCard(team)));
+}
 
-    const top = document.createElement('div');
-    top.className = 'tcard-top';
-    const name = document.createElement('div');
-    name.className = 'tcard-name';
-    name.textContent = team.name;
-    top.appendChild(name);
+function teamCard(team) {
+  const card = document.createElement('div');
+  card.className = 'team';
 
-    const meta = document.createElement('div');
-    meta.className = 'tcard-meta';
-    if (team.tag) meta.appendChild(badge(team.tag));
-    meta.appendChild(badge(`Seed ${team.seed}`));
-    const named = team.players.filter((p) => p.name).length;
-    meta.appendChild(badge(`${named} / ${team.players.length} players`));
+  const row = document.createElement('div');
+  row.className = 'team-row';
 
-    card.append(top, meta);
-    list.appendChild(card);
+  const id = document.createElement('div');
+  id.className = 'team-id';
+  const name = document.createElement('div');
+  name.className = 'team-name';
+  name.textContent = team.name;
+  const sub = document.createElement('div');
+  sub.className = 'team-sub';
+  if (team.tag) sub.appendChild(badge(team.tag));
+  sub.appendChild(badge(`Seed ${team.seed}`));
+  const named = team.players.filter((p) => p.name).length;
+  sub.appendChild(badge(`${named} / ${team.players.length} players`));
+  id.append(name, sub);
+
+  const actions = document.createElement('div');
+  actions.className = 'team-actions';
+
+  const editBtn = document.createElement('button');
+  editBtn.type = 'button';
+  editBtn.className = 'tlink';
+  editBtn.textContent = 'EDIT';
+
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'tlink danger';
+  removeBtn.textContent = 'REMOVE';
+  removeBtn.title = 'Take this team out of the tournament. The team stays in the registry.';
+  removeBtn.addEventListener('click', () => removeFromTournament(team));
+
+  actions.append(editBtn, removeBtn);
+  row.append(logoImage(team), id, actions);
+  card.appendChild(row);
+
+  const editor = document.createElement('div');
+  editor.className = 'team-edit';
+  editor.hidden = true;
+  card.appendChild(editor);
+
+  editBtn.addEventListener('click', () => {
+    editor.hidden = !editor.hidden;
+    editBtn.textContent = editor.hidden ? 'EDIT' : 'CLOSE';
+    if (!editor.hidden && editor.childElementCount === 0) buildEditor(editor, team);
   });
-  body.appendChild(list);
+
+  return card;
+}
+
+// ตัวแก้ไขทีม สร้างตอนกดเปิดครั้งแรกเท่านั้น
+// ทัวร์นาเมนต์ที่มี 128 ทีมจะได้ไม่ต้องสร้าง input 128 x 5 ช่องทิ้งไว้ตั้งแต่ต้น
+function buildEditor(editor, team) {
+  const nameRow = document.createElement('div');
+  nameRow.className = 'frow';
+
+  const nameFld = document.createElement('div');
+  nameFld.className = 'fld';
+  const nameLabel = document.createElement('label');
+  nameLabel.textContent = 'Team name';
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.maxLength = 24;
+  nameInput.value = team.name;
+  nameFld.append(nameLabel, nameInput);
+
+  const tagFld = document.createElement('div');
+  tagFld.className = 'fld';
+  tagFld.style.flex = '0 0 130px';
+  const tagLabel = document.createElement('label');
+  tagLabel.textContent = 'Tag';
+  const tagInput = document.createElement('input');
+  tagInput.type = 'text';
+  tagInput.maxLength = 6;
+  tagInput.value = team.tag || '';
+  tagFld.append(tagLabel, tagInput);
+
+  const seedFld = document.createElement('div');
+  seedFld.className = 'fld';
+  seedFld.style.flex = '0 0 110px';
+  const seedLabel = document.createElement('label');
+  seedLabel.textContent = 'Seed';
+  const seedInput = document.createElement('input');
+  seedInput.type = 'number';
+  seedInput.min = '0';
+  seedInput.max = '9999';
+  seedInput.value = String(team.seed ?? 0);
+  seedFld.append(seedLabel, seedInput);
+
+  nameRow.append(nameFld, tagFld, seedFld);
+
+  const playersWrap = document.createElement('div');
+  const playersLabel = document.createElement('label');
+  playersLabel.className = 'section-title';
+  playersLabel.textContent = 'Players';
+  playersLabel.style.display = 'block';
+  playersLabel.style.marginBottom = '8px';
+  playersWrap.appendChild(playersLabel);
+
+  const playerInputs = team.players.map((player, i) => {
+    const row = document.createElement('div');
+    row.className = 'player-row';
+
+    const slot = document.createElement('div');
+    slot.className = 'slot';
+    slot.textContent = String(i + 1);
+
+    const pname = document.createElement('input');
+    pname.type = 'text';
+    pname.className = 'pname';
+    pname.maxLength = 24;
+    pname.placeholder = `Player ${i + 1}`;
+    pname.value = player.name || '';
+
+    const prole = document.createElement('input');
+    prole.type = 'text';
+    prole.className = 'prole';
+    prole.maxLength = 16;
+    prole.placeholder = 'Role';
+    prole.value = player.role || '';
+
+    const capLabel = document.createElement('label');
+    capLabel.className = 'cap';
+    const cap = document.createElement('input');
+    cap.type = 'radio';
+    cap.name = `captain-${team.id}`;
+    cap.checked = player.isCaptain === true;
+    capLabel.append(cap, document.createTextNode('Captain'));
+
+    row.append(slot, pname, prole, capLabel);
+    playersWrap.appendChild(row);
+    return { pname, prole, cap };
+  });
+
+  // LOGO ---------------------------------------------------------------
+  const logoRow = document.createElement('div');
+  logoRow.className = 'frow';
+  logoRow.style.alignItems = 'center';
+
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/png,image/jpeg,image/webp';
+  fileInput.hidden = true;
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files?.[0];
+    if (file) uploadLogo(team, file);
+    fileInput.value = '';
+  });
+
+  const uploadBtn = document.createElement('button');
+  uploadBtn.type = 'button';
+  uploadBtn.className = 'tlink';
+  uploadBtn.textContent = 'UPLOAD LOGO';
+  uploadBtn.addEventListener('click', () => fileInput.click());
+
+  const clearLogoBtn = document.createElement('button');
+  clearLogoBtn.type = 'button';
+  clearLogoBtn.className = 'tlink';
+  clearLogoBtn.textContent = 'CLEAR LOGO';
+  clearLogoBtn.addEventListener('click', () => clearLogo(team));
+
+  const hint = document.createElement('span');
+  hint.className = 'hint';
+  hint.style.color = 'var(--muted)';
+  hint.textContent = 'PNG, JPG or WEBP, up to 4 MB';
+
+  logoRow.append(fileInput, uploadBtn, clearLogoBtn, hint);
+
+  // SAVE / DELETE ------------------------------------------------------
+  const saveRow = document.createElement('div');
+  saveRow.className = 'frow';
+  saveRow.style.marginBottom = '0';
+
+  const saveBtn = document.createElement('button');
+  saveBtn.type = 'button';
+  saveBtn.className = 'tlink primary';
+  saveBtn.textContent = 'SAVE TEAM';
+  saveBtn.addEventListener('click', () => saveTeam(team, {
+    name: nameInput.value,
+    tag: tagInput.value,
+    seed: Number(seedInput.value),
+    players: playerInputs.map((p) => ({
+      name: p.pname.value,
+      role: p.prole.value,
+      isCaptain: p.cap.checked
+    }))
+  }));
+
+  const spacer = document.createElement('div');
+  spacer.className = 'spacer';
+  spacer.style.marginLeft = 'auto';
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.type = 'button';
+  deleteBtn.className = 'tlink danger';
+  deleteBtn.textContent = 'DELETE FROM REGISTRY';
+  deleteBtn.title = 'Remove the team everywhere, including other tournaments';
+  deleteBtn.addEventListener('click', () => deleteTeam(team));
+
+  saveRow.append(saveBtn, spacer, deleteBtn);
+
+  editor.append(nameRow, playersWrap, logoRow, saveRow);
 }
 
 function renderSources() {
@@ -253,6 +462,208 @@ async function remove() {
   }
 }
 
+// TEAM ACTIONS -------------------------------------------------------
+
+// ผลลัพธ์จาก endpoint ของ roster ส่ง tournament กับ teams กลับมาพร้อมกัน
+// จะได้ไม่ต้องยิงซ้ำเพื่ออัปเดตตัวเลข x / y teams
+function applyRoster(data) {
+  if (data.tournament) {
+    current = data.tournament;
+    renderHead(current);
+    renderFormatHint();
+  }
+  renderTeams(current, data.teams || []);
+}
+
+async function refreshRegistry() {
+  try {
+    registry = (await fetchJson('/api/teams')).teams || [];
+  } catch (error) {
+    showToast(error.message || 'Could not load the team registry', 'red');
+    registry = [];
+  }
+  renderPicker();
+}
+
+// เอาเฉพาะทีมที่ยังไม่ได้อยู่ในทัวร์นาเมนต์นี้
+function renderPicker() {
+  const picker = document.getElementById('pickTeam');
+  const inRoster = new Set(roster.map((t) => t.id));
+  const available = registry.filter((t) => !inRoster.has(t.id));
+
+  picker.textContent = '';
+  if (available.length === 0) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = registry.length === 0
+      ? 'No teams in the registry yet'
+      : 'Every registered team is already in';
+    picker.appendChild(opt);
+    picker.disabled = true;
+    document.getElementById('addExistingBtn').disabled = true;
+    return;
+  }
+
+  picker.disabled = false;
+  document.getElementById('addExistingBtn').disabled = false;
+  available.forEach((team) => {
+    const opt = document.createElement('option');
+    opt.value = team.id;
+    opt.textContent = team.tag ? `${team.name} (${team.tag})` : team.name;
+    picker.appendChild(opt);
+  });
+}
+
+async function addTeamToTournament(teamId) {
+  const data = await fetchJson(`/api/tournaments/${encodeURIComponent(tournamentId)}/teams`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ teamId })
+  });
+  applyRoster(data);
+  renderPicker();
+}
+
+async function addExisting() {
+  const teamId = document.getElementById('pickTeam').value;
+  if (!teamId) return;
+  try {
+    await addTeamToTournament(teamId);
+    showToast('Team added', 'green');
+  } catch (error) {
+    showToast(error.message || 'Could not add the team', 'red');
+  }
+}
+
+async function createAndAdd() {
+  const nameInput = document.getElementById('newTeamName');
+  const tagInput = document.getElementById('newTeamTag');
+  const name = nameInput.value.trim();
+  if (!name) {
+    showToast('Team name is required', 'red');
+    nameInput.focus();
+    return;
+  }
+
+  try {
+    const { team } = await fetchJson('/api/teams', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, tag: tagInput.value })
+    });
+    await refreshRegistry();
+    await addTeamToTournament(team.id);
+    nameInput.value = '';
+    tagInput.value = '';
+    nameInput.focus();
+    showToast(`${team.name} added`, 'green');
+  } catch (error) {
+    // ทีมถูกสร้างในทะเบียนแล้วแต่ใส่เข้าทัวร์นาเมนต์ไม่ได้ (เช่นเต็ม)
+    // ไม่ลบทีมทิ้ง เพราะผู้ใช้ตั้งใจสร้างมันจริงๆ แค่ยังใส่ไม่ได้
+    await refreshRegistry();
+    showToast(error.message || 'Could not create the team', 'red');
+  }
+}
+
+async function removeFromTournament(team) {
+  if (!window.confirm(`Take "${team.name}" out of this tournament?\n\nThe team stays in the registry.`)) return;
+  try {
+    const data = await fetchJson(
+      `/api/tournaments/${encodeURIComponent(tournamentId)}/teams/${encodeURIComponent(team.id)}`,
+      { method: 'DELETE' }
+    );
+    applyRoster(data);
+    renderPicker();
+    showToast('Removed from tournament', 'blue');
+  } catch (error) {
+    showToast(error.message || 'Could not remove the team', 'red');
+  }
+}
+
+async function saveTeam(team, values) {
+  try {
+    await fetchJson(`/api/teams/${encodeURIComponent(team.id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: values.name, tag: values.tag, players: values.players })
+    });
+    if (values.seed !== team.seed) {
+      await fetchJson(
+        `/api/tournaments/${encodeURIComponent(tournamentId)}/teams/${encodeURIComponent(team.id)}/seed`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ seed: values.seed })
+        }
+      );
+    }
+    await reloadTeams();
+    await refreshRegistry();
+    showToast('Team saved', 'green');
+  } catch (error) {
+    showToast(error.message || 'Could not save the team', 'red');
+  }
+}
+
+async function deleteTeam(team) {
+  if (!window.confirm(
+    `Delete "${team.name}" from the registry?\n\n` +
+    'It is removed from every tournament it entered, not just this one.'
+  )) return;
+
+  try {
+    await fetchJson(`/api/teams/${encodeURIComponent(team.id)}`, { method: 'DELETE' });
+    await reloadTeams();
+    await refreshRegistry();
+    showToast('Team deleted', 'blue');
+  } catch (error) {
+    showToast(error.message || 'Could not delete the team', 'red');
+  }
+}
+
+// อัปโหลดไฟล์ดิบ ไม่ใช้ multipart ให้ตรงกับที่ฝั่งเซิร์ฟเวอร์รับ
+async function uploadLogo(team, file) {
+  if (file.size > 4 * 1024 * 1024) {
+    showToast('Logo must be 4 MB or smaller', 'red');
+    return;
+  }
+  try {
+    const response = await fetch(withToken(`/api/teams/${encodeURIComponent(team.id)}/logo`), {
+      method: 'POST',
+      headers: {
+        'Content-Type': file.type,
+        ...(controlToken ? { Authorization: `Bearer ${controlToken}` } : {})
+      },
+      body: file
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || response.statusText);
+    await reloadTeams();
+    await refreshRegistry();
+    showToast('Logo uploaded', 'green');
+  } catch (error) {
+    showToast(error.message || 'Upload failed', 'red');
+  }
+}
+
+async function clearLogo(team) {
+  try {
+    await fetchJson(`/api/teams/${encodeURIComponent(team.id)}/logo`, { method: 'DELETE' });
+    await reloadTeams();
+    await refreshRegistry();
+    showToast('Logo cleared', 'blue');
+  } catch (error) {
+    showToast(error.message || 'Could not clear the logo', 'red');
+  }
+}
+
+async function reloadTeams() {
+  const data = await fetchJson(`/api/tournaments/${encodeURIComponent(tournamentId)}`);
+  current = data.tournament;
+  renderHead(current);
+  renderTeams(current, data.teams || []);
+}
+
 async function load() {
   const data = await fetchJson(`/api/tournaments/${encodeURIComponent(tournamentId)}`);
   current = data.tournament;
@@ -260,6 +671,7 @@ async function load() {
   renderForm(current);
   renderTeams(current, data.teams || []);
   renderSources();
+  await refreshRegistry();
 
   ['detailSection', 'teamsSection', 'obsSection'].forEach((id) => {
     document.getElementById(id).hidden = false;
@@ -284,6 +696,23 @@ document.getElementById('revertBtn').addEventListener('click', () => {
   }
 });
 document.getElementById('fFormat').addEventListener('change', renderFormatHint);
+
+document.getElementById('addTeamBtn').addEventListener('click', () => {
+  const panel = document.getElementById('addPanel');
+  panel.hidden = !panel.hidden;
+  if (!panel.hidden) {
+    renderPicker();
+    document.getElementById('newTeamName').focus();
+  }
+});
+document.getElementById('closeAddBtn').addEventListener('click', () => {
+  document.getElementById('addPanel').hidden = true;
+});
+document.getElementById('addExistingBtn').addEventListener('click', addExisting);
+document.getElementById('createTeamBtn').addEventListener('click', createAndAdd);
+document.getElementById('newTeamName').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') createAndAdd();
+});
 
 socket.on('connect_error', (error) => showToast(error.message || 'Connection error', 'red'));
 
