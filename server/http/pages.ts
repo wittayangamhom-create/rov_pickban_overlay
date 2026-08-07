@@ -29,6 +29,15 @@ export function pageRoutes(): Router {
     router.get(route, (_req, res) => res.sendFile(path.join(PUBLIC_DIR, file)));
   });
 
+  // หน้าเดียวเสิร์ฟทุก id ตัวหน้าเว็บอ่าน id เอาเองจาก URL
+  //
+  // ระวัง: หน้านี้อยู่ลึกกว่าหน้าอื่นหนึ่งชั้น (/tournament/xxxx)
+  // ใน tournament.html ต้องอ้าง /js/... /css/... แบบเต็ม ห้ามใช้ path สัมพัทธ์
+  // ไม่งั้นเบราว์เซอร์จะไปหาที่ /tournament/js/... แล้วได้ 404
+  router.get('/tournament/:id', (_req, res) => {
+    res.sendFile(path.join(PUBLIC_DIR, 'tournament.html'));
+  });
+
   router.get('/index.html', (_req, res) => res.redirect('/control'));
 
   return router;

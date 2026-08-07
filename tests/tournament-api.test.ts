@@ -1,0 +1,161 @@
+// เทสต์ HTTP ของทัวร์นาเมนต์ ยิงผ่าน express จริง
+//
+// ตั้ง ROV_USER_DATA_DIR ไปที่โฟลเดอร์ชั่วคราวก่อน import อะไรก็ตาม
+// เพราะ config อ่าน env ตอน import ถ้าตั้งทีหลังจะไปเขียนทับ
+// tournament.db ของผู้ใช้จริง
+
+import test from 'node:test';
+import assert from 'node:assert';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import http from 'http';
+
+const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'rov-api-test-'));
+process.env.ROV_USER_DATA_DIR = path.join(TMP, 'data');
+process.env.ROV_USER_MEDIA_DIR = path.join(TMP, 'media');
+process.env.CONTROL_TOKEN = '';
+
+// ต้อง import หลังตั้ง env เท่านั้น
+const { createApp } = require('../server/index') as typeof import('../server/index');
+const { closeDatabase } = require('../server/store/db') as typeof import('../server/store/db');
+
+const app = createApp();
+let server: http.Server;
+let base = '';
+
+interface Reply { status: number; body: any }
+
+function request(method: string, url: string, payload?: unknown): Promise<Reply> {
+  return new Promise((resolve, reject) => {
+    const data = payload === undefined ? null : JSON.stringify(payload);
+    const req = http.request(
+      `${base}${url}`,
+      {
+        method,
+        headers: data
+          ? { 'content-type': 'application/json', 'content-length': Buffer.byteLength(data) }
+          : {}
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (c: Buffer) => chunks.push(c));
+        res.on('end', () => {
+          const text = Buffer.concat(chunks).toString();
+          let body: any = null;
+          try { body = JSON.parse(text); } catch { body = text; }
+          resolve({ status: res.statusCode || 0, body });
+        });
+      }
+    );
+    req.on('error', reject);
+    if (data) req.write(data);
+    req.end();
+  });
+}
+
+test.before(async () => {
+  await new Promise<void>((resolve) => {
+    server = app.listen(0, '127.0.0.1', () => {
+      const addr = server.address() as { port: number };
+      base = `http://127.0.0.1:${addr.port}`;
+      resolve();
+    });
+  });
+});
+
+test.after(() => {
+  server?.close();
+  // ต้องปิดฐานข้อมูลก่อนลบโฟลเดอร์ ไม่งั้น Windows ไม่ยอมให้ลบ
+  // เพราะ SQLite ยังถือ handle ของไฟล์ .db กับไฟล์ WAL อยู่
+  closeDatabase();
+  // ลบไม่ได้ก็ไม่ใช่ความผิดของเทสต์ อย่าให้ชุดเทสต์ล้มเพราะเก็บกวาดไม่สำเร็จ
+  try {
+    fs.rmSync(TMP, { recursive: true, force: true });
+  } catch {
+    /* โฟลเดอร์ชั่วคราวค้างไว้ ระบบจะเก็บเอง */
+  }
+});
+
+test('options endpoint describes the formats the UI must offer', async () => {
+  const { status, body } = await request('GET', '/api/tournament-options');
+  assert.strictEqual(status, 200);
+  assert.strictEqual(body.maxTeams, 128);
+  assert.deepStrictEqual(body.bestOf, [1, 3, 5, 7]);
+  assert.deepStrictEqual(body.statuses, ['active', 'finished']);
+
+  const ids = body.formats.map((f: any) => f.id);
+  ['single_elim', 'double_elim', 'round_robin', 'group_stage'].forEach((id) => {
+    assert.ok(ids.includes(id), `${id} offered`);
+  });
+  const rr = body.formats.find((f: any) => f.id === 'round_robin');
+  assert.strictEqual(rr.maxTeams, 24, 'round robin cap is visible to the UI');
+});
+
+test('a tournament can be created, listed, read, updated and deleted', async () => {
+  const created = await request('POST', '/api/tournaments', {
+    name: 'RPL Season 1', format: 'single_elim', bestOf: 5, note: 'Bangkok'
+  });
+  assert.strictEqual(created.status, 200);
+  const id = created.body.tournament.id;
+  assert.strictEqual(created.body.tournament.name, 'RPL Season 1');
+  assert.strictEqual(created.body.tournament.bestOf, 5);
+  assert.strictEqual(created.body.tournament.maxTeams, 128);
+
+  const listed = await request('GET', '/api/tournaments');
+  assert.strictEqual(listed.status, 200);
+  assert.ok(listed.body.tournaments.some((t: any) => t.id === id));
+
+  const read = await request('GET', `/api/tournaments/${id}`);
+  assert.strictEqual(read.status, 200);
+  assert.strictEqual(read.body.tournament.note, 'Bangkok');
+  assert.deepStrictEqual(read.body.teams, [], 'a new tournament has no teams');
+
+  const updated = await request('PUT', `/api/tournaments/${id}`, {
+    name: 'RPL Season 1 (final)', format: 'round_robin', bestOf: 3, status: 'active', note: ''
+  });
+  assert.strictEqual(updated.status, 200);
+  assert.strictEqual(updated.body.tournament.format, 'round_robin');
+  assert.strictEqual(updated.body.tournament.maxTeams, 24, 'cap follows the new format');
+
+  const removed = await request('DELETE', `/api/tournaments/${id}`);
+  assert.strictEqual(removed.status, 200);
+  assert.strictEqual((await request('GET', `/api/tournaments/${id}`)).status, 404);
+});
+
+test('a tournament needs a name', async () => {
+  const { status, body } = await request('POST', '/api/tournaments', { name: '   ' });
+  assert.strictEqual(status, 400);
+  assert.match(body.error, /name is required/i);
+});
+
+test('unknown ids give 404, not 500', async () => {
+  assert.strictEqual((await request('GET', '/api/tournaments/nope')).status, 404);
+  assert.strictEqual((await request('DELETE', '/api/tournaments/nope')).status, 404);
+  assert.strictEqual((await request('PUT', '/api/tournaments/nope', { name: 'x' })).status, 404);
+  assert.strictEqual(
+    (await request('POST', '/api/tournaments/nope/status', { status: 'finished' })).status,
+    404
+  );
+});
+
+test('status flips without sending the whole form', async () => {
+  const id = (await request('POST', '/api/tournaments', { name: 'Cup' })).body.tournament.id;
+
+  const finished = await request('POST', `/api/tournaments/${id}/status`, { status: 'finished' });
+  assert.strictEqual(finished.status, 200);
+  assert.strictEqual(finished.body.tournament.status, 'finished');
+  assert.strictEqual(finished.body.tournament.name, 'Cup', 'nothing else changed');
+
+  const junk = await request('POST', `/api/tournaments/${id}/status`, { status: 'banana' });
+  assert.strictEqual(junk.body.tournament.status, 'active', 'junk falls back to active');
+});
+
+test('the tournament page is served for any id', async () => {
+  const res = await request('GET', '/tournament/anything');
+  assert.strictEqual(res.status, 200);
+  assert.ok(String(res.body).includes('/js/tournament.js'), 'serves the tournament page');
+  // path ของ asset ต้องเป็นแบบเต็ม ไม่งั้นเบราว์เซอร์หาไม่เจอเพราะ URL ลึกกว่าหน้าอื่น
+  assert.ok(!String(res.body).includes('src="js/'), 'no relative script paths');
+  assert.ok(!String(res.body).includes('href="css/'), 'no relative stylesheet paths');
+});

@@ -1,19 +1,17 @@
-// หน้าแรกของแอพ
+// หน้าแรกของแอพ = รายการทัวร์นาเมนต์
 //
-// เป็นทางแยกไปแต่ละเครื่องมือ ไม่ใช่หน้าคุมอะไรเอง คุมจริงอยู่ที่ /control
-// แสดงสถานะสดไว้ด้วย จะได้รู้ตั้งแต่หน้านี้ว่าตอนนี้ออกอากาศอะไรอยู่
+// เดิมหน้านี้เป็นทางแยกไปเครื่องมือต่างๆ ตอนนี้เครื่องมือย้ายไปอยู่แถบบนหมดแล้ว
+// เนื้อหาหลักของหน้าคือทัวร์นาเมนต์ ตามลำดับการใช้งานที่ตั้งใจไว้:
+// เปิดแอพ -> เลือกทัวร์นาเมนต์ -> เข้าไปดู/แก้รายละเอียดของทัวร์นาเมนต์นั้น
 //
-// เวลาจะเพิ่มโหมดจัดการทัวร์นาเมนต์ ให้เพิ่ม section ใหม่ใน home.html
-// แล้วเพิ่ม route กับหน้าเว็บของมัน ไม่ต้องแก้ไฟล์นี้
+// แถบสถานะด้านบนยังอยู่ เพราะบอกว่าตอนนี้ออกอากาศอะไรอยู่
+// ซึ่งเป็นสิ่งแรกที่คนคุมงานอยากรู้เวลากลับมาที่หน้านี้
 
-const { socket, withToken, absoluteUrl, showToast } = window.RovClient;
+const { socket, fetchJson, showToast } = window.RovClient;
 
-// ขนาดหน้าจอเลือกที่ control panel หน้านี้แค่บอกว่า URL ไหนคู่กับขนาดไหน
-const SOURCES = [
-  { name: 'Overlay 1080p', path: '/overlay', size: '1920 x 1080' },
-  { name: 'Overlay 1440p', path: '/overlay-1440', size: '2560 x 1440' },
-  { name: 'Result', path: '/result', size: 'matches overlay size' }
-];
+let options = null;
+
+// STATUS BAR ---------------------------------------------------------
 
 function setStatus(online, label) {
   const box = document.getElementById('status');
@@ -70,75 +68,177 @@ function renderTags(state) {
   }
 }
 
-function renderSources() {
-  const wrap = document.getElementById('sources');
-  wrap.textContent = '';
+// CREATE FORM --------------------------------------------------------
 
-  SOURCES.forEach((source) => {
-    const url = absoluteUrl(source.path);
+// ตัวเลือกรูปแบบ/จำนวนเกมมาจากเซิร์ฟเวอร์ ไม่ฝังค่าซ้ำไว้ที่นี่
+// เพิ่มรูปแบบใหม่ใน server/domain/tournament.ts แล้วหน้านี้ได้ตามเอง
+async function loadOptions() {
+  options = await fetchJson('/api/tournament-options');
 
-    const row = document.createElement('div');
-    row.className = 'src';
-
-    const name = document.createElement('div');
-    name.className = 'src-name';
-    name.textContent = source.name;
-
-    const urlEl = document.createElement('div');
-    urlEl.className = 'src-url';
-    urlEl.textContent = url;
-    urlEl.title = `${url}  (${source.size})`;
-
-    const actions = document.createElement('div');
-    actions.className = 'src-actions';
-
-    const copy = document.createElement('button');
-    copy.type = 'button';
-    copy.className = 'tlink';
-    copy.textContent = 'COPY URL';
-    copy.addEventListener('click', () => copyUrl(url));
-
-    const open = document.createElement('a');
-    open.className = 'tlink';
-    open.href = withToken(source.path);
-    open.target = '_blank';
-    open.rel = 'noopener';
-    open.textContent = 'OPEN';
-
-    actions.append(copy, open);
-    row.append(name, urlEl, actions);
-    wrap.appendChild(row);
+  const format = document.getElementById('fFormat');
+  format.textContent = '';
+  options.formats.forEach((f) => {
+    const opt = document.createElement('option');
+    opt.value = f.id;
+    opt.textContent = f.label;
+    format.appendChild(opt);
   });
+
+  const bestOf = document.getElementById('fBestOf');
+  bestOf.textContent = '';
+  options.bestOf.forEach((n) => {
+    const opt = document.createElement('option');
+    opt.value = String(n);
+    opt.textContent = `Best of ${n}`;
+    if (n === 3) opt.selected = true;
+    bestOf.appendChild(opt);
+  });
+
+  format.addEventListener('change', renderFormatHint);
+  renderFormatHint();
 }
 
-async function copyUrl(url) {
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(url);
-    } else {
-      const input = document.createElement('input');
-      input.value = url;
-      input.setAttribute('readonly', '');
-      input.style.position = 'fixed';
-      input.style.left = '-9999px';
-      document.body.appendChild(input);
-      input.select();
-      document.execCommand('copy');
-      input.remove();
-    }
-    showToast('URL copied', 'green');
-  } catch {
-    showToast('Copy failed', 'red');
+// บอกเพดานทีมของรูปแบบที่เลือกไว้ตั้งแต่ตอนสร้าง
+// จะได้ไม่ไปเจอตอนเพิ่มทีมครบ 24 แล้วค่อยรู้ว่าพบกันหมดรับได้เท่านี้
+function renderFormatHint() {
+  const id = document.getElementById('fFormat').value;
+  const spec = options?.formats.find((f) => f.id === id);
+  const hint = document.getElementById('formatHint');
+  hint.textContent = spec
+    ? `${spec.minTeams}-${spec.maxTeams} teams`
+    : '';
+}
+
+function toggleCreate(show) {
+  document.getElementById('createPanel').hidden = !show;
+  document.getElementById('newBtn').hidden = show;
+  if (show) document.getElementById('fName').focus();
+}
+
+async function createTournament() {
+  const name = document.getElementById('fName').value.trim();
+  if (!name) {
+    showToast('Tournament name is required', 'red');
+    document.getElementById('fName').focus();
+    return;
   }
+
+  try {
+    const { tournament } = await fetchJson('/api/tournaments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        format: document.getElementById('fFormat').value,
+        bestOf: Number(document.getElementById('fBestOf').value),
+        note: document.getElementById('fNote').value
+      })
+    });
+    showToast(`Created ${tournament.name}`, 'green');
+    window.location.href = `/tournament/${encodeURIComponent(tournament.id)}`;
+  } catch (error) {
+    showToast(error.message || 'Could not create tournament', 'red');
+  }
+}
+
+// LIST ---------------------------------------------------------------
+
+function badge(text, cls = '') {
+  const el = document.createElement('span');
+  el.className = `badge ${cls}`.trim();
+  el.textContent = text;
+  return el;
+}
+
+function formatLabel(id) {
+  return options?.formats.find((f) => f.id === id)?.label || id;
+}
+
+// ทุกอย่างประกอบด้วย textContent ชื่อทัวร์นาเมนต์มาจากผู้ใช้
+function tournamentCard(t) {
+  const card = document.createElement('a');
+  card.className = `tcard ${t.status}`;
+  card.href = `/tournament/${encodeURIComponent(t.id)}`;
+
+  const top = document.createElement('div');
+  top.className = 'tcard-top';
+  const name = document.createElement('div');
+  name.className = 'tcard-name';
+  name.textContent = t.name;
+  top.appendChild(name);
+
+  const meta = document.createElement('div');
+  meta.className = 'tcard-meta';
+  meta.appendChild(badge(t.status === 'finished' ? 'Finished' : 'Active', t.status));
+  meta.appendChild(badge(formatLabel(t.format)));
+  meta.appendChild(badge(`Bo${t.bestOf}`));
+  meta.appendChild(badge(
+    `${t.teamCount} / ${t.maxTeams} teams`,
+    t.teamCount >= t.maxTeams ? 'full' : 'count'
+  ));
+
+  card.append(top, meta);
+
+  if (t.note) {
+    const note = document.createElement('div');
+    note.className = 'tcard-note';
+    note.textContent = t.note;
+    card.appendChild(note);
+  }
+
+  return card;
+}
+
+async function renderList() {
+  const wrap = document.getElementById('tournamentList');
+  wrap.textContent = '';
+
+  let tournaments = [];
+  try {
+    tournaments = (await fetchJson('/api/tournaments')).tournaments || [];
+  } catch (error) {
+    showToast(error.message || 'Could not load tournaments', 'red');
+    return;
+  }
+
+  if (tournaments.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = 'No tournaments yet. Create one to get started.';
+    wrap.appendChild(empty);
+    return;
+  }
+
+  const list = document.createElement('div');
+  list.className = 'tlist';
+  tournaments.forEach((t) => list.appendChild(tournamentCard(t)));
+  wrap.appendChild(list);
 }
 
 function renderFoot() {
   document.getElementById('foot').textContent =
-    'Add the overlay and result URLs as Browser sources in OBS. ' +
-    'Set the source size to match the overlay size chosen in the Control Panel, ' +
-    'and tick "Shutdown source when not visible" off so the draft keeps running.';
+    'Open a tournament to edit its details and copy the OBS browser source URLs. ' +
+    'The Control Panel, Presets and Design pages still work on their own for a ' +
+    'quick match that is not part of any tournament.';
 }
 
-renderSources();
-renderFoot();
+// BOOT ---------------------------------------------------------------
+
+document.getElementById('newBtn').addEventListener('click', () => toggleCreate(true));
+document.getElementById('cancelBtn').addEventListener('click', () => toggleCreate(false));
+document.getElementById('createBtn').addEventListener('click', createTournament);
+document.getElementById('fName').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') createTournament();
+});
+
 setStatus(null, 'Connecting');
+renderFoot();
+
+(async () => {
+  try {
+    await loadOptions();
+  } catch (error) {
+    showToast(error.message || 'Could not load tournament options', 'red');
+  }
+  await renderList();
+})();

@@ -15,6 +15,7 @@ import { pageRoutes } from './http/pages';
 import { stateRoutes } from './http/api-state';
 import { presetRoutes } from './http/api-presets';
 import { mediaRoutes } from './http/api-media';
+import { tournamentRoutes } from './http/api-tournaments';
 import { registerHandlers } from './sockets/handlers';
 
 type OriginCallback = (err: Error | null, allow?: boolean) => void;
@@ -57,6 +58,7 @@ export function createApp(): Express {
   app.use(stateRoutes());
   app.use(presetRoutes());
   app.use(mediaRoutes());
+  app.use(tournamentRoutes());
 
   return app;
 }

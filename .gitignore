@@ -46,3 +46,8 @@ public/images/skins/*
 __oracle.js
 __original-server.js
 __difftest*/
+
+# ฐานข้อมูลทัวร์นาเมนต์เป็นข้อมูลของผู้ใช้ ไม่ใช่ซอร์ส
+data/tournament.db
+data/tournament.db-shm
+data/tournament.db-wal

@@ -1,0 +1,349 @@
+/* เปลือกหน้าเว็บที่ใช้ร่วมกัน: แถบบน, การ์ด, ฟอร์ม, ปุ่ม, toast
+ *
+ * เดิม CSS ก้อนนี้ฝังอยู่ใน home.html ไฟล์เดียว พอมีหน้าทัวร์นาเมนต์เพิ่ม
+ * จึงแยกออกมาไว้ที่เดียว หน้าใหม่ (ทีม, สถิติ) ให้ลิงก์ไฟล์นี้แล้วเขียนเฉพาะ
+ * ส่วนที่ต่างของตัวเองพอ
+ *
+ * หมายเหตุ: control.css / overlay.css เป็นคนละระบบ ไม่เกี่ยวกับไฟล์นี้ */
+
+:root {
+  --bg: #0b0c14;
+  --s1: #111220;
+  --s2: #181929;
+  --s3: #1e2035;
+  --border: rgba(255, 255, 255, 0.07);
+  --border2: rgba(255, 255, 255, 0.13);
+  --blue: #3b82f6;
+  --red: #ef4444;
+  --gold: #f59e0b;
+  --green: #10b981;
+  --purple: #8b5cf6;
+  --text: #e2e8f0;
+  --muted: #4a5568;
+  --muted2: #64748b;
+  --hf: 'Arial Narrow', 'Segoe UI Condensed', 'Segoe UI', Arial, sans-serif;
+  --bf: 'Segoe UI', Arial, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--bf);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* TOP BAR ---------------------------------------------------------- */
+
+.topbar {
+  background: var(--s1);
+  border-bottom: 1px solid var(--border);
+  padding: 0 18px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo {
+  font-family: var(--hf);
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: var(--blue);
+  white-space: nowrap;
+}
+.logo span { color: rgba(255, 255, 255, 0.3); }
+
+/* PAGE NAV - identical markup, order and styling on every page, so the
+   same button is always in the same place. The current page is marked rather
+   than removed, so the row never changes width as you move between pages. */
+.topnav {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.topnav .tlink.active {
+  background: var(--s1);
+  color: var(--text);
+  border-color: var(--blue);
+  cursor: default;
+}
+.topnav .tlink.active:hover { color: var(--text); border-color: var(--blue); }
+
+.tlink {
+  padding: 5px 13px;
+  border-radius: 6px;
+  font-family: var(--hf);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  cursor: pointer;
+  border: 1px solid var(--border2);
+  background: var(--s3);
+  color: var(--muted2);
+  transition: all 0.2s;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.tlink:hover { color: var(--blue); border-color: var(--blue); }
+.tlink.danger:hover { color: var(--red); border-color: var(--red); }
+.tlink.primary { color: #bfdbfe; border-color: rgba(59, 130, 246, 0.5); }
+.tlink.primary:hover { color: #fff; border-color: var(--blue); background: rgba(59, 130, 246, 0.16); }
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 22px 14px 60px; }
+
+/* LIVE STATUS ------------------------------------------------------ */
+
+.status {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 22px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.status-dot { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+.status.online .status-dot { background: var(--green); box-shadow: 0 0 8px rgba(16, 185, 129, 0.7); }
+.status.offline .status-dot { background: var(--red); }
+.status-label {
+  font-family: var(--hf);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted2);
+}
+.status-match {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--hf);
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+}
+.sm-blue { color: #7dd3fc; }
+.sm-red { color: #fca5a5; }
+.sm-score { color: var(--text); }
+.status-tags { display: flex; gap: 7px; flex-wrap: wrap; }
+.stag {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border2);
+  background: var(--s3);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--muted2);
+}
+.stag.on { color: var(--green); border-color: rgba(16, 185, 129, 0.45); }
+.stag.off { color: var(--red); border-color: rgba(239, 68, 68, 0.45); }
+
+/* SECTIONS --------------------------------------------------------- */
+
+.section { margin-bottom: 26px; }
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 11px 2px;
+  flex-wrap: wrap;
+}
+.section-title {
+  font-family: var(--hf);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.section-head .spacer { margin-left: auto; }
+
+/* TOURNAMENT LIST -------------------------------------------------- */
+
+.tlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
+
+.tcard {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.18s, transform 0.18s;
+  position: relative;
+  overflow: hidden;
+}
+.tcard::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--green);
+  transition: background 0.18s;
+}
+.tcard.finished::before { background: var(--muted); }
+.tcard:hover { border-color: var(--border2); transform: translateY(-2px); }
+.tcard-top { display: flex; align-items: flex-start; gap: 10px; }
+.tcard-name {
+  font-family: var(--hf);
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #dbeafe;
+  line-height: 1.25;
+  word-break: break-word;
+}
+.tcard.finished .tcard-name { color: var(--muted2); }
+.tcard-meta { display: flex; gap: 7px; flex-wrap: wrap; }
+.tcard-note { font-size: 12px; line-height: 1.6; color: var(--muted2); }
+.tcard-foot {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border);
+  padding-top: 9px;
+  margin-top: 2px;
+}
+
+.badge {
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border2);
+  background: var(--s3);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--muted2);
+  white-space: nowrap;
+}
+.badge.active { color: var(--green); border-color: rgba(16, 185, 129, 0.45); }
+.badge.finished { color: var(--muted2); }
+.badge.count { color: #c4b5fd; border-color: rgba(139, 92, 246, 0.4); }
+.badge.full { color: var(--gold); border-color: rgba(245, 158, 11, 0.5); }
+
+/* FORMS ------------------------------------------------------------ */
+
+.panel {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.frow { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.fld { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 170px; }
+.fld.wide { flex-basis: 100%; }
+.fld label {
+  font-family: var(--hf);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.fld input, .fld select, .fld textarea {
+  background: var(--s3);
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  padding: 9px 11px;
+  color: var(--text);
+  font-family: var(--bf);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.18s;
+}
+.fld input:focus, .fld select:focus, .fld textarea:focus { border-color: var(--blue); }
+.fld textarea { resize: vertical; min-height: 62px; }
+.fld .hint { font-size: 11px; color: var(--muted); }
+
+.empty {
+  background: var(--s1);
+  border: 1px dashed var(--border2);
+  border-radius: 12px;
+  padding: 34px 18px;
+  text-align: center;
+  color: var(--muted2);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* OBS SOURCE ROWS -------------------------------------------------- */
+
+.src {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 14px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.src-name { flex: 0 0 130px; font-family: var(--hf); font-size: 13px; font-weight: 800; letter-spacing: 1px; }
+.src-url {
+  flex: 1;
+  min-width: 180px;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 12px;
+  color: var(--muted2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.src-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.foot {
+  margin-top: 30px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+/* TOAST ------------------------------------------------------------ */
+
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--s2);
+  border: 1px solid var(--border2);
+  border-left: 3px solid var(--green);
+  color: var(--text);
+  padding: 11px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0;
+  transition: all 0.25s;
+  z-index: 300;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 640px) {
+  .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; }
+  .topnav { margin-left: 0; width: 100%; }
+  .src-name { flex: 1 1 100%; }
+}
