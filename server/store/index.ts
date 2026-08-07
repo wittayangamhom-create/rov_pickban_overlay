@@ -15,12 +15,18 @@ import type { TournamentStore } from './tournaments';
 import { createTournamentStore } from './tournaments';
 import type { MatchStore } from './matches';
 import { createMatchStore } from './matches';
+import type { GameStore } from './games';
+import { createGameStore } from './games';
+import type { LiveMatchStore } from './live-match';
+import { createLiveMatchStore } from './live-match';
 
 export interface Stores {
   db: DatabaseSync;
   teams: TeamStore;
   tournaments: TournamentStore;
   matches: MatchStore;
+  games: GameStore;
+  liveMatch: LiveMatchStore;
 }
 
 let stores: Stores | null = null;
@@ -30,7 +36,14 @@ export function getStores(): Stores {
     const db = getDatabase();
     const teams = createTeamStore(db);
     const tournaments = createTournamentStore(db, teams);
-    stores = { db, teams, tournaments, matches: createMatchStore(db, tournaments) };
+    stores = {
+      db,
+      teams,
+      tournaments,
+      matches: createMatchStore(db, tournaments),
+      games: createGameStore(db),
+      liveMatch: createLiveMatchStore(db)
+    };
   }
   return stores;
 }

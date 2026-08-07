@@ -11,8 +11,8 @@ conversation history, everything needed to continue is here or in `CLAUDE.md`.
 
 ## 0. Where things stand
 
-**Last updated 2026-08-07.** Phases 0–3 are merged and **pushed** to
-`origin/main` (`93cfef4`). Phase 4 is on top of that.
+**Last updated 2026-08-07.** Phases 0–4 are on `origin/main` (`62d2b02`).
+Phase 5 is committed locally on top.
 
 | Commit | What |
 |---|---|
@@ -23,18 +23,24 @@ conversation history, everything needed to continue is here or in `CLAUDE.md`.
 | `bf76d9e` | Phase 2 — home is the tournament list, `/tournament/:id` detail page |
 | `16fe9bb` | Phase 3 — team registry UI, per-team logos, rosters, cap in the UI |
 | `a3cf985` | Phase 4 — bracket generation, random draw, series results |
+| _pending_ | Phase 5 — match to control panel, live pointer, **draft capture** |
 
-Current state: **0 type errors under `strict`, 90 tests passing.** Creating a
-tournament, adding teams, editing rosters, uploading logos, drawing a bracket
-and recording Bo3/Bo5 results all work end to end in the browser.
+Current state: **0 type errors under `strict`, 103 tests passing.** Creating a
+tournament, adding teams, editing rosters, uploading logos, drawing a bracket,
+recording Bo3/Bo5 results, opening a match in the control panel and having its
+draft recorded all work end to end in the browser.
+
+**Draft capture is live.** Every pick and ban is mirrored into its game record
+the moment it is made — no save step, nothing to forget. This was the deadline
+item: games drafted before capture existed would have been unrecoverable.
 
 `tournament.db` is created on first use of a tournament feature, not at
 startup, so anyone using only the overlay never grows a database file. It is
 gitignored — it is user data, not source.
 
-**Next up: Phase 5** — clicking a match opens it in the control panel, and the
-result writes back. That is also where **draft capture must start** (§6), since
-games drafted before capture exists are unrecoverable.
+**Next up: Phase 6** — the `/teams` directory and `/teams/:id` profile with
+match history. After that Phase 7 (team-list overlay) and Phase 8 (analytics,
+which now has real data to read).
 
 **Double elimination is deliberately not generated.** The losers bracket has
 its own routing rules and shipping it half-right is worse than refusing it, so
@@ -92,7 +98,7 @@ JavaScript, served as classic `<script>` tags with no bundler. See §8.
 DATA_DIR/
   state.json       live broadcast match   (existing, unchanged)
   presets.json     quick-match presets    (existing, unchanged)
-  tournament.db    SQLite: tournaments, teams, rosters, matches
+  tournament.db    SQLite: tournaments, teams, rosters, matches, games, drafts
 ```
 
 **Tournament data must never live inside `state.json`.** `sanitizeState` rebuilds
@@ -106,7 +112,8 @@ missing keys from defaults, which is why today's older `state.json` still loads.
 `PRAGMA user_version`. Append new steps only — never edit a released one, or
 machines that upgraded and machines that installed fresh end up with different
 schemas. Current step 1 creates: `teams`, `team_players`, `tournaments`,
-`tournament_teams`. Step 2 adds `matches` (Phase 4). `games` arrives in Phase 5.
+`tournament_teams`. Step 2 adds `matches`. Step 3 adds `games`, `game_slots`
+and `live_match`.
 
 Foreign keys and WAL are enabled on open. `openDatabase(path)` takes a path so
 tests use `':memory:'` and never touch the user's file.
@@ -118,7 +125,7 @@ tests use `':memory:'` and never touch the user's file.
 `teams` is the canonical, editable team profile — name, tag, logo, current roster
 of five slots with one captain.
 
-Each **game record** (Phase 5+) must store a frozen copy of
+Each **game record** stores a frozen copy of
 `{teamId, name, logo, players}` as they were at that match.
 
 The reason for both: the registry is the team *as it is today*; the snapshot is
@@ -215,8 +222,8 @@ on read rather than maintaining incremental counters. Broadcast to a Socket.IO
 | 2 | Home becomes the tournament list; `/tournament/:id` | done `bf76d9e` |
 | 3 | Team registry UI, logos, rosters, 128 cap in the UI | done `16fe9bb` |
 | 4 | Formats, bracket generation, random matching | done `a3cf985` (no double elim) |
-| 5 | Match → control panel, live-match pointer, results write back | **next** |
-| 6 | `/teams` directory and `/teams/:id` profile with history | |
+| 5 | Match → control panel, live pointer, draft capture | done |
+| 6 | `/teams` directory and `/teams/:id` profile with history | **next** |
 | 7 | Team-list overlay with staggered slide-in | |
 | 8 | Pick/ban analytics, live, per tournament and per team | |
 
@@ -282,6 +289,11 @@ Each of these cost real debugging time. They are also in `CLAUDE.md`.
   that rule and that a bracket always takes exactly `n-1` played matches.
 - **`matches.team_a_id` uses `ON DELETE SET NULL`, not `CASCADE`.** Deleting a
   team mid-tournament must empty its slots, not delete the schedule around it.
+- **Reopening a live match must restore its saved draft first.** Draft capture
+  is attached to `emitState`, so putting a match back on air with a blank draft
+  makes the very next emit overwrite the stored one with emptiness — simply
+  looking at a match would erase it. `goLive` calls `restoreDraft` before
+  `setState`, and a regression test covers it.
 
 ---
 

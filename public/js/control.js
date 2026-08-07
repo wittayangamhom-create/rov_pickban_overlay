@@ -1011,3 +1011,50 @@ async function resetMatchState() {
 }
 
 boot();
+
+// LIVE MATCH BANNER ---------------------------------------------------
+//
+// บอกว่ากำลังคุมคู่ไหนของทัวร์นาเมนต์ไหนอยู่ และดราฟต์กำลังถูกบันทึกลงเกมไหน
+// ขึ้นเฉพาะตอนเข้ามาจากหน้าทัวร์นาเมนต์ แมตช์เดี่ยวจะไม่เห็นแถบนี้
+//
+// สำคัญกับคนคุมงาน: ถ้าไม่บอก จะแยกไม่ออกว่าที่กำลังดราฟต์อยู่นี่
+// ถูกบันทึกเข้าทัวร์นาเมนต์หรือเป็นแค่แมตช์ซ้อมที่ไม่ได้เก็บอะไรเลย
+async function renderLiveBar() {
+  const bar = document.getElementById('liveBar');
+  if (!bar) return;
+
+  let live = null;
+  try {
+    live = (await fetchJson('/api/live-match')).live;
+  } catch {
+    return; // ยังไม่มีระบบทัวร์นาเมนต์ก็ไม่ต้องแสดงอะไร
+  }
+
+  if (!live || !live.matchId) {
+    bar.hidden = true;
+    return;
+  }
+
+  bar.textContent = '';
+  const dot = document.createElement('span');
+  dot.textContent = 'ON AIR';
+
+  const where = document.createElement('span');
+  where.className = 'lb-muted';
+  where.textContent = [live.tournamentName, live.matchLabel, live.gameNo ? `Game ${live.gameNo}` : null]
+    .filter(Boolean).join('  ·  ');
+
+  const note = document.createElement('span');
+  note.className = 'lb-muted';
+  note.textContent = 'draft is being recorded';
+
+  const back = document.createElement('a');
+  back.className = 'tlink lb-spacer';
+  back.href = withToken(`/tournament/${encodeURIComponent(live.tournamentId || '')}`);
+  back.textContent = 'BACK TO TOURNAMENT';
+
+  bar.append(dot, where, note, back);
+  bar.hidden = false;
+}
+
+renderLiveBar();

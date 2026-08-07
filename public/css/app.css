@@ -496,3 +496,29 @@ body {
 .match-score input:focus { border-color: var(--blue); }
 .match-score input:disabled { opacity: 0.4; cursor: not-allowed; }
 .match-score .dash { color: var(--muted); font-weight: 700; }
+
+.tlink.live-now {
+  color: #6ee7b7;
+  border-color: rgba(16, 185, 129, 0.6);
+  background: rgba(16, 185, 129, 0.14);
+}
+
+/* แถบบอกว่ากำลังคุมแมตช์ไหนอยู่ บนหน้า Control Panel */
+.live-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  border-radius: 10px;
+  padding: 9px 14px;
+  margin: 10px 14px 0;
+  font-family: var(--hf, 'Segoe UI'), sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #6ee7b7;
+}
+.live-bar .muted { color: #64748b; font-weight: 600; letter-spacing: 0.4px; }
+.live-bar a { margin-left: auto; }

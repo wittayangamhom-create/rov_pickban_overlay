@@ -94,5 +94,56 @@ export const MIGRATIONS: readonly string[] = [
   CREATE INDEX idx_matches_tid ON matches(tournament_id);
   -- หนึ่งตำแหน่งมีได้คู่เดียว กันการสร้างสายซ้อนกันสองรอบ
   CREATE UNIQUE INDEX idx_matches_pos ON matches(tournament_id, bracket, round, slot);
+  `,
+
+  // 3 - เกมแต่ละเกมในซีรีส์ พร้อมดราฟต์ และตัวชี้แมตช์ที่กำลังออกอากาศ
+  `
+  CREATE TABLE games (
+    id           TEXT PRIMARY KEY,
+    match_id     TEXT NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+    game_no      INTEGER NOT NULL,
+
+    -- สำเนาแช่แข็งของทีม ณ ตอนที่เล่นเกมนี้ ไม่ใช่แค่ id
+    -- ทะเบียนทีมแก้ได้ตลอด ถ้าเก็บแค่ id แล้วปีหน้าเปลี่ยนตัวผู้เล่น
+    -- ประวัติเกมเก่าจะเปลี่ยนตาม และสถิติ pick/ban ที่อ้างอิงมันก็เพี้ยนด้วย
+    blue_team_id TEXT,
+    red_team_id  TEXT,
+    blue_name    TEXT NOT NULL DEFAULT '',
+    red_name     TEXT NOT NULL DEFAULT '',
+
+    -- 1 = ดราฟต์ครบแล้ว นับเข้าสถิติได้
+    -- สถิติต้องนับเฉพาะเกมที่ล็อกแล้ว ไม่งั้นตอนดราฟต์ค้างกลางคัน
+    -- อัตราการเลือกของฮีโร่ทุกตัวจะร่วงพร้อมกันเพราะตัวหารโตขึ้นก่อน
+    draft_locked INTEGER NOT NULL DEFAULT 0,
+    winner       TEXT,
+    started_at   INTEGER NOT NULL,
+    updated_at   INTEGER NOT NULL
+  );
+
+  CREATE UNIQUE INDEX idx_games_match_no ON games(match_id, game_no);
+
+  -- ดราฟต์เก็บเป็นแถวละช่อง ไม่ใช่ JSON ก้อนเดียว
+  -- สถิติจะได้เป็น GROUP BY ธรรมดา ไม่ต้องอ่านทุกเกมมาแกะในหน่วยความจำ
+  CREATE TABLE game_slots (
+    game_id TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+    side    TEXT NOT NULL,          -- 'blue' | 'red'
+    kind    TEXT NOT NULL,          -- 'pick' | 'ban'
+    idx     INTEGER NOT NULL,
+    -- ชื่อฮีโร่เก็บเป็นข้อความดิบ ห้ามเอาไปกรองผ่าน sanitizeHero ซ้ำภายหลัง
+    -- ชื่อฮีโร่ผูกกับชื่อไฟล์ภาพ วันหลังเปลี่ยนชื่อไฟล์ ประวัติจะกลายเป็น null หมด
+    hero    TEXT NOT NULL,
+    PRIMARY KEY (game_id, side, kind, idx)
+  );
+
+  CREATE INDEX idx_game_slots_hero ON game_slots(hero);
+
+  -- แมตช์ที่กำลังออกอากาศ มีได้ทีละหนึ่งเท่านั้น (id = 1 เสมอ)
+  -- ไม่เก็บใน state.json เพราะ sanitizeState ตัดคีย์ที่ไม่รู้จักทิ้ง
+  CREATE TABLE live_match (
+    id       INTEGER PRIMARY KEY CHECK (id = 1),
+    match_id TEXT REFERENCES matches(id) ON DELETE SET NULL,
+    game_id  TEXT REFERENCES games(id) ON DELETE SET NULL,
+    since    INTEGER NOT NULL
+  );
   `
 ];

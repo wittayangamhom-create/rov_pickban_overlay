@@ -18,6 +18,7 @@ import { mediaRoutes } from './http/api-media';
 import { tournamentRoutes } from './http/api-tournaments';
 import { teamRoutes } from './http/api-teams';
 import { registerHandlers } from './sockets/handlers';
+import { attachDraftCapture } from './services/live-match';
 
 type OriginCallback = (err: Error | null, allow?: boolean) => void;
 
@@ -82,6 +83,10 @@ export function createServer(): {
 
   attachIo(io);
   io.on('connection', registerHandlers);
+
+  // ต้องเกาะก่อนรับคำสั่งแรก ไม่งั้นดราฟต์ช่วงต้นของเกมแรกจะไม่ถูกบันทึก
+  // และเกมที่ดราฟต์ไปแล้วก่อนตัวบันทึกจะมี กู้คืนไม่ได้เลย
+  attachDraftCapture();
 
   return { app, server, io };
 }

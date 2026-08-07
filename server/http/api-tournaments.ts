@@ -11,6 +11,7 @@ import express, { Router } from 'express';
 import { getStores } from '../store/index';
 import { FORMATS, BEST_OF_OPTIONS, STATUSES, MAX_TEAMS } from '../domain/tournament';
 import { requireControl } from './auth';
+import { goLive, clearLive, describeLive } from '../services/live-match';
 
 const NOT_FOUND = /not found/i;
 
@@ -167,6 +168,36 @@ export function tournamentRoutes(): Router {
     }
     matches.clear(req.params.id);
     res.json({ ok: true, matches: [] });
+  });
+
+  // LIVE MATCH --------------------------------------------------------
+
+  router.get('/api/live-match', (_req, res) => {
+    res.json({ live: describeLive() });
+  });
+
+  // เอาแมตช์นี้ขึ้นจอ แล้วผูกดราฟต์ที่กำลังจะเกิดเข้ากับเกมของแมตช์นี้
+  router.post('/api/matches/:matchId/live', requireControl, (req, res) => {
+    const result = goLive(req.params.matchId);
+    if (result.error !== undefined) {
+      res.status(NOT_FOUND.test(result.error) ? 404 : 400).json({ error: result.error });
+      return;
+    }
+    res.json({ ok: true, live: result.live });
+  });
+
+  router.delete('/api/live-match', requireControl, (_req, res) => {
+    res.json({ ok: true, live: clearLive() });
+  });
+
+  // ดราฟต์ที่บันทึกไว้ของแมตช์นี้ ใช้ดูย้อนหลังและเป็นวัตถุดิบของสถิติ
+  router.get('/api/matches/:matchId/games', (req, res) => {
+    const { matches, games } = getStores();
+    if (!matches.get(req.params.matchId)) {
+      res.status(404).json({ error: 'Match not found' });
+      return;
+    }
+    res.json({ games: games.forMatch(req.params.matchId) });
   });
 
   router.put('/api/matches/:matchId/result', requireControl, (req, res) => {

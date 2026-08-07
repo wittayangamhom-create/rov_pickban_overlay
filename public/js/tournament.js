@@ -17,6 +17,7 @@ let options = null;
 let current = null;   // ทัวร์นาเมนต์ที่โหลดมาล่าสุด ใช้ตอนกด REVERT
 let roster = [];      // ทีมที่ลงแข่งในทัวร์นาเมนต์นี้
 let registry = [];    // ทีมทั้งหมดในทะเบียนกลาง ไว้ใส่ใน dropdown
+let liveMatchId = null; // คู่ที่กำลังออกอากาศ มีได้ทีละหนึ่งทั้งระบบ
 
 // ขนาดหน้าจอเลือกที่ control panel หน้านี้แค่บอกว่า URL ไหนคู่กับขนาดไหน
 const SOURCES = [
@@ -708,7 +709,34 @@ function matchRow(match) {
   score.append(a, dash, b);
 
   row.append(side(match, 'a'), score, side(match, 'b'));
+
+  // เปิดคู่นี้ขึ้นจอแล้วเด้งไปหน้า Control Panel
+  // ทำได้เฉพาะคู่ที่รู้ตัวผู้เล่นทั้งสองฝั่งแล้วและไม่ใช่บาย
+  if (bothKnown) {
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'tlink primary';
+    open.textContent = liveMatchId === match.id ? 'ON AIR' : 'OPEN';
+    if (liveMatchId === match.id) open.classList.add('live-now');
+    open.addEventListener('click', () => openInControl(match));
+    row.appendChild(open);
+  }
+
   return row;
+}
+
+async function openInControl(match) {
+  try {
+    const data = await fetchJson(`/api/matches/${encodeURIComponent(match.id)}/live`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    liveMatchId = data.live?.matchId || null;
+    showToast(`Game ${data.live?.gameNo ?? 1} is on air`, 'green');
+    window.location.href = withToken('/control');
+  } catch (error) {
+    showToast(error.message || 'Could not put this match on air', 'red');
+  }
 }
 
 function renderMatches(list) {
@@ -750,8 +778,13 @@ function renderMatches(list) {
 
 async function loadMatches() {
   try {
-    const data = await fetchJson(`/api/tournaments/${encodeURIComponent(tournamentId)}/matches`);
-    renderMatches(data.matches || []);
+    // รู้ก่อนว่าคู่ไหนออกอากาศอยู่ ปุ่มจะได้ขึ้น ON AIR ให้ถูกตัว
+    const [matchData, liveData] = await Promise.all([
+      fetchJson(`/api/tournaments/${encodeURIComponent(tournamentId)}/matches`),
+      fetchJson('/api/live-match').catch(() => ({ live: {} }))
+    ]);
+    liveMatchId = liveData.live?.matchId || null;
+    renderMatches(matchData.matches || []);
   } catch (error) {
     showToast(error.message || 'Could not load matches', 'red');
   }

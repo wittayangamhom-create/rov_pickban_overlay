@@ -50,9 +50,29 @@ export function saveStateSoon(): void {
   }, 150);
 }
 
+// ผู้ฟังการเปลี่ยนแปลงของ state
+//
+// มีไว้ให้ตัวบันทึกดราฟต์เกาะ โดยที่ไฟล์นี้ไม่ต้องรู้จักฐานข้อมูลทัวร์นาเมนต์
+// ถ้าเรียก store ของทัวร์นาเมนต์ตรงๆ จากตรงนี้ ชั้นล่างจะกลายเป็นรู้จักชั้นบน
+// แล้วเทสต์ที่แตะแค่ state ก็จะลากฐานข้อมูลติดมาด้วยทั้งก้อน
+type StateListener = (state: GameState) => void;
+const listeners: StateListener[] = [];
+
+export function subscribe(listener: StateListener): void {
+  listeners.push(listener);
+}
+
 export function emitState(): void {
   if (io) io.emit('stateUpdate', gameState);
   saveStateSoon();
+  // ผู้ฟังพังไม่ควรทำให้การออกอากาศพังตาม
+  listeners.forEach((listener) => {
+    try {
+      listener(gameState);
+    } catch (error) {
+      console.warn(`State listener failed: ${(error as Error).message}`);
+    }
+  });
 }
 
 // Undo only covers the teams, never the clock. Rewinding the timer mid-draft
