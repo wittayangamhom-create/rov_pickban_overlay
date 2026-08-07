@@ -747,8 +747,14 @@ function renderMatches(list) {
   if (total > 0) badges.appendChild(badge(`${played} / ${total} played`, played === total ? 'active' : 'count'));
 
   document.getElementById('clearMatchesBtn').hidden = list.length === 0;
-  // ยังไม่มีคู่ก็ไม่ต้องให้กดเข้าไปดูสายเปล่าๆ
-  document.getElementById('bracketLink').hidden = list.length === 0;
+
+  // ปุ่มดูสายต้องเห็นตลอด แม้ยังไม่ได้จับคู่
+  // เคยซ่อนไว้ตอนยังไม่มีคู่ แล้วกลายเป็นว่าไม่มีใครรู้ว่ามีหน้านี้อยู่
+  // ยังไม่มีคู่ก็ให้กดเข้าไปแล้วหน้านั้นบอกเองว่าให้กลับมากด DRAW MATCHES
+  const bracketLink = document.getElementById('bracketLink');
+  bracketLink.title = list.length === 0
+    ? 'Nothing drawn yet - the bracket page will tell you so'
+    : 'See the full bracket';
 
   const body = document.getElementById('matchesBody');
   body.textContent = '';

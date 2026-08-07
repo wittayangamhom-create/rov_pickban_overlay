@@ -12,8 +12,7 @@ conversation history, everything needed to continue is here or in `CLAUDE.md`.
 ## 0. Where things stand
 
 **Last updated 2026-08-07.** Phases 0–5 are on `origin/main` (`9635d0f`).
-The bracket page (`418b23d`) is committed locally on top and is **not yet
-verified in a browser** — see below.
+The bracket page is committed locally on top and **is** verified in a browser.
 
 | Commit | What |
 |---|---|
@@ -25,7 +24,7 @@ verified in a browser** — see below.
 | `16fe9bb` | Phase 3 — team registry UI, per-team logos, rosters, cap in the UI |
 | `a3cf985` | Phase 4 — bracket generation, random draw, series results |
 | `72ddb6f` | Phase 5 — match to control panel, live pointer, **draft capture** |
-| `418b23d` | Bracket page at `/tournament/:id/bracket` (layout unverified) |
+| `418b23d` | Bracket page at `/tournament/:id/bracket` |
 
 Current state: **0 type errors under `strict`, 103 tests passing.** Creating a
 tournament, adding teams, editing rosters, uploading logos, drawing a bracket,
@@ -265,11 +264,6 @@ pattern already in `public/js/overlay.js`.
   caster drive the draft while OBS has focus. The app's own hotkeys page
   currently implies this is impossible — true for a browser page, not for the
   Electron main process.
-- **The bracket page layout has not been seen in a browser.** Port 3000 was
-  held by the running Electron app, so the preview server could not start and
-  a second server against the same `tournament.db` was not worth the risk.
-  Types, tests and syntax all pass; the column alignment and connector lines
-  are the part still to confirm.
 - **Double elimination generation** — now the largest gap, and the reason the
   losers half of the reference bracket cannot render.
 - **Test goals 2–4** (game modes consistent, no overlapping random matches,

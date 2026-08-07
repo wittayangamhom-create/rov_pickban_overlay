@@ -31,10 +31,12 @@
 .bracket-hint { font-size: 11px; color: var(--muted); }
 .bracket-head .spacer { margin-left: auto; }
 
+/* ต้องเลื่อนได้ทั้งสองแกน
+   สาย 128 ทีมมีรอบแรก 64 คู่ สูงหลายพันพิกเซล ถ้าซ่อนแกนตั้งจะถูกตัดหายไปเฉยๆ */
 .bracket-scroll {
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: auto;
   padding: 18px;
+  max-height: calc(100vh - 118px);
 }
 
 .bracket-section { margin-bottom: 26px; }
@@ -68,13 +70,15 @@
 }
 .round-body { flex: 1; display: flex; flex-direction: column; }
 
+/* ช่องต้องสูงกว่ากล่องเสมอ ส่วนต่างคือช่องว่างระหว่างคู่
+   ถ้าสองค่านี้เท่ากัน กล่องจะชนกันจนดูเป็นก้อนเดียว แยกไม่ออกว่าคู่ไหนเป็นคู่ไหน
+   ความสูงรวมตั้งจาก bracket.js (SLOT_HEIGHT) ให้มากกว่าความสูงกล่องไว้เสมอ */
 .slot {
   flex: 1;
   display: flex;
   align-items: center;
   position: relative;
   padding-right: 24px;
-  min-height: 54px;
 }
 
 /* เส้นนอนที่ยื่นออกไปทางขวาของกล่อง */
@@ -84,7 +88,7 @@
   right: 0;
   width: 24px;
   top: 50%;
-  border-top: 1px solid var(--border2);
+  border-top: 1px solid rgba(255,255,255,0.24);
 }
 
 /* เส้นตั้งที่ไปบรรจบกับคู่ของมัน
@@ -95,7 +99,7 @@
   position: absolute;
   right: 0;
   height: 50%;
-  border-right: 1px solid var(--border2);
+  border-right: 1px solid rgba(255,255,255,0.24);
 }
 .round:not(:last-child) .slot.pair-top::before { top: 50%; }
 .round:not(:last-child) .slot.pair-bottom::before { bottom: 50%; }
@@ -107,7 +111,7 @@
   left: -24px;
   top: 50%;
   width: 24px;
-  border-top: 1px solid var(--border2);
+  border-top: 1px solid rgba(255,255,255,0.24);
 }
 
 /* MATCH BOX -------------------------------------------------------- */
@@ -132,8 +136,8 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 5px 7px;
-  min-height: 25px;
+  padding: 4px 7px;
+  min-height: 22px;
 }
 .mrow + .mrow { border-top: 1px solid rgba(0, 0, 0, 0.45); }
 
