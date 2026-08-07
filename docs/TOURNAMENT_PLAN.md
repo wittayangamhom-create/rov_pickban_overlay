@@ -11,8 +11,8 @@ conversation history, everything needed to continue is here or in `CLAUDE.md`.
 
 ## 0. Where things stand
 
-**Last updated 2026-08-07.** Phases 0–3 are merged into `main`. Not pushed to
-`origin` yet — `origin/main` is still at `34ea94f`.
+**Last updated 2026-08-07.** Phases 0–3 are merged and **pushed** to
+`origin/main` (`93cfef4`). Phase 4 is on top of that.
 
 | Commit | What |
 |---|---|
@@ -22,18 +22,24 @@ conversation history, everything needed to continue is here or in `CLAUDE.md`.
 | `7b00e06` | This document brought up to date |
 | `bf76d9e` | Phase 2 — home is the tournament list, `/tournament/:id` detail page |
 | `16fe9bb` | Phase 3 — team registry UI, per-team logos, rosters, cap in the UI |
+| _pending_ | Phase 4 — bracket generation, random draw, series results |
 
-Current state: **0 type errors under `strict`, 56 tests passing, packaged
-`.exe` verified correct.** Creating a tournament, adding teams from the
-registry or inline, editing rosters, uploading team logos and deleting all work
-end to end in the browser.
+Current state: **0 type errors under `strict`, 90 tests passing.** Creating a
+tournament, adding teams, editing rosters, uploading logos, drawing a bracket
+and recording Bo3/Bo5 results all work end to end in the browser.
 
 `tournament.db` is created on first use of a tournament feature, not at
 startup, so anyone using only the overlay never grows a database file. It is
 gitignored — it is user data, not source.
 
-**Next up: Phase 4** — bracket generation and random matching. The roster is
-now fillable, so there are teams to draw against each other.
+**Next up: Phase 5** — clicking a match opens it in the control panel, and the
+result writes back. That is also where **draft capture must start** (§6), since
+games drafted before capture exists are unrecoverable.
+
+**Double elimination is deliberately not generated.** The losers bracket has
+its own routing rules and shipping it half-right is worse than refusing it, so
+`generateMatches` returns a clear error and the format stays selectable but
+undrawable. It is the main gap in Phase 4.
 
 ---
 
@@ -86,7 +92,7 @@ JavaScript, served as classic `<script>` tags with no bundler. See §8.
 DATA_DIR/
   state.json       live broadcast match   (existing, unchanged)
   presets.json     quick-match presets    (existing, unchanged)
-  tournament.db    SQLite: tournaments, teams, rosters     <- added Phase 1
+  tournament.db    SQLite: tournaments, teams, rosters, matches
 ```
 
 **Tournament data must never live inside `state.json`.** `sanitizeState` rebuilds
@@ -100,7 +106,7 @@ missing keys from defaults, which is why today's older `state.json` still loads.
 `PRAGMA user_version`. Append new steps only — never edit a released one, or
 machines that upgraded and machines that installed fresh end up with different
 schemas. Current step 1 creates: `teams`, `team_players`, `tournaments`,
-`tournament_teams`. `matches` and `games` arrive in Phases 4–5.
+`tournament_teams`. Step 2 adds `matches` (Phase 4). `games` arrives in Phase 5.
 
 Foreign keys and WAL are enabled on open. `openDatabase(path)` takes a path so
 tests use `':memory:'` and never touch the user's file.
@@ -153,9 +159,10 @@ cannot decide a winner.
 switching to round robin returns an error and drops nobody. Silently deleting
 six teams because someone changed a dropdown is the worse failure.
 
-Random seeding uses a shuffle; **round robin uses the circle method**, which
+Random seeding uses a Fisher-Yates shuffle with an injectable RNG, so tests get
+deterministic draws. **Round robin uses the circle method**, which
 makes "no team appears twice in a round" true by construction rather than by
-retrying until it looks right. (Phase 4.)
+retrying until it looks right. Implemented in `server/domain/bracket.ts`.
 
 `DRAFT_SEQUENCE` in `server/domain/draft.ts` is still a fixed 16-phase, 4-ban
 sequence. Draft format needs to become per-tournament configuration before match
@@ -207,8 +214,8 @@ on read rather than maintaining incremental counters. Broadcast to a Socket.IO
 | 1 | Tournament + team data layer (SQLite) | done `168e21b` |
 | 2 | Home becomes the tournament list; `/tournament/:id` | done `bf76d9e` |
 | 3 | Team registry UI, logos, rosters, 128 cap in the UI | done `16fe9bb` |
-| 4 | Formats, bracket generation, random matching | **next** |
-| 5 | Match → control panel, live-match pointer, results write back | |
+| 4 | Formats, bracket generation, random matching | done (except double elim) |
+| 5 | Match → control panel, live-match pointer, results write back | **next** |
 | 6 | `/teams` directory and `/teams/:id` profile with history | |
 | 7 | Team-list overlay with staggered slide-in | |
 | 8 | Pick/ban analytics, live, per tournament and per team | |
@@ -268,6 +275,13 @@ Each of these cost real debugging time. They are also in `CLAUDE.md`.
   `/tournament/js/x.js` and 404s. Covered by a test in `tournament-api.test.ts`.
 - **Closing a SQLite database before deleting its folder** — Windows refuses the
   delete while WAL handles are open. Test cleanup calls `closeDatabase()` first.
+- **In an elimination bracket, `null` means two different things.** In round 1
+  it means "no team here" (a bye). In every later round it means "the winner is
+  not known yet". Treating them alike gave every bye-winner a free ride to the
+  final without playing. **Byes can only exist in round 1.** Tests assert both
+  that rule and that a bracket always takes exactly `n-1` played matches.
+- **`matches.team_a_id` uses `ON DELETE SET NULL`, not `CASCADE`.** Deleting a
+  team mid-tournament must empty its slots, not delete the schedule around it.
 
 ---
 

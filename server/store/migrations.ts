@@ -57,5 +57,42 @@ export const MIGRATIONS: readonly string[] = [
 
   CREATE INDEX idx_tournament_teams_tid ON tournament_teams(tournament_id);
   CREATE INDEX idx_tournaments_status ON tournaments(status);
+  `,
+
+  // 2 - ตารางแข่ง
+  `
+  CREATE TABLE matches (
+    id            TEXT PRIMARY KEY,
+    tournament_id TEXT NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+    -- 'main' สำหรับสายเดียว หรือชื่อกลุ่ม ('A','B',...) ตอนแบ่งสาย
+    bracket       TEXT NOT NULL DEFAULT 'main',
+    round         INTEGER NOT NULL,
+    slot          INTEGER NOT NULL,
+
+    -- ON DELETE SET NULL ไม่ใช่ CASCADE ตั้งใจ
+    -- ลบทีมทิ้งกลางทัวร์นาเมนต์ ตารางแข่งต้องไม่หายตามไปด้วย
+    -- ช่องนั้นกลายเป็นว่างแทน ประวัติที่เหลือยังอยู่ครบ
+    team_a_id     TEXT REFERENCES teams(id) ON DELETE SET NULL,
+    team_b_id     TEXT REFERENCES teams(id) ON DELETE SET NULL,
+
+    best_of       INTEGER NOT NULL DEFAULT 3,
+    status        TEXT NOT NULL DEFAULT 'pending',
+    score_a       INTEGER NOT NULL DEFAULT 0,
+    score_b       INTEGER NOT NULL DEFAULT 0,
+    winner_id     TEXT,
+    is_bye        INTEGER NOT NULL DEFAULT 0,
+
+    -- ผู้ชนะไปคู่ไหนต่อ เก็บเป็นตำแหน่ง ไม่ใช่ id ของคู่ถัดไป
+    -- สร้างสายใหม่แล้ว id เปลี่ยนหมด แต่ตำแหน่งยังเหมือนเดิม
+    next_round    INTEGER,
+    next_slot     INTEGER,
+    next_side     INTEGER,
+
+    created_at    INTEGER NOT NULL
+  );
+
+  CREATE INDEX idx_matches_tid ON matches(tournament_id);
+  -- หนึ่งตำแหน่งมีได้คู่เดียว กันการสร้างสายซ้อนกันสองรอบ
+  CREATE UNIQUE INDEX idx_matches_pos ON matches(tournament_id, bracket, round, slot);
   `
 ];

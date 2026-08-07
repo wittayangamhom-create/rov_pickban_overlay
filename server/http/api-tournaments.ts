@@ -134,6 +134,52 @@ export function tournamentRoutes(): Router {
     });
   });
 
+  // MATCHES -----------------------------------------------------------
+
+  router.get('/api/tournaments/:id/matches', (req, res) => {
+    const { tournaments, matches } = getStores();
+    if (!tournaments.get(req.params.id)) {
+      res.status(404).json({ error: 'Tournament not found' });
+      return;
+    }
+    res.json({ matches: matches.list(req.params.id) });
+  });
+
+  // สร้างสายใหม่ = ทิ้งของเดิมทั้งชุด ผลที่บันทึกไว้หายด้วย
+  // หน้าเว็บต้องถามยืนยันก่อนเรียก
+  router.post('/api/tournaments/:id/matches', requireControl, (req, res) => {
+    const body = (req.body || {}) as { randomise?: unknown };
+    const result = getStores().matches.generate(req.params.id, {
+      randomise: body.randomise === true
+    });
+    if (result.error !== undefined) {
+      res.status(NOT_FOUND.test(result.error) ? 404 : 400).json({ error: result.error });
+      return;
+    }
+    res.json({ ok: true, matches: result.matches });
+  });
+
+  router.delete('/api/tournaments/:id/matches', requireControl, (req, res) => {
+    const { tournaments, matches } = getStores();
+    if (!tournaments.get(req.params.id)) {
+      res.status(404).json({ error: 'Tournament not found' });
+      return;
+    }
+    matches.clear(req.params.id);
+    res.json({ ok: true, matches: [] });
+  });
+
+  router.put('/api/matches/:matchId/result', requireControl, (req, res) => {
+    const body = (req.body || {}) as { scoreA?: unknown; scoreB?: unknown };
+    const { matches } = getStores();
+    const result = matches.setResult(req.params.matchId, body.scoreA, body.scoreB);
+    if (result.error !== undefined) {
+      res.status(NOT_FOUND.test(result.error) ? 404 : 400).json({ error: result.error });
+      return;
+    }
+    res.json({ ok: true, match: result.match, matches: matches.list(result.match.tournamentId) });
+  });
+
   router.put('/api/tournaments/:id/teams/:teamId/seed', requireControl, (req, res) => {
     const body = (req.body || {}) as { seed?: unknown };
     const { tournaments } = getStores();

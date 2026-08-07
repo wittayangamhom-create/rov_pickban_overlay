@@ -657,6 +657,151 @@ async function clearLogo(team) {
   }
 }
 
+// MATCHES ------------------------------------------------------------
+
+function teamName(id) {
+  if (!id) return null;
+  return roster.find((t) => t.id === id)?.name || registry.find((t) => t.id === id)?.name || 'Unknown team';
+}
+
+function side(match, which) {
+  const id = which === 'a' ? match.teamAId : match.teamBId;
+  const el = document.createElement('div');
+  el.className = `match-side${which === 'b' ? ' right' : ''}`;
+  const name = teamName(id);
+  if (!name) {
+    el.classList.add('tbd');
+    el.textContent = match.isBye ? 'bye' : 'to be decided';
+  } else {
+    el.textContent = name;
+    if (match.winnerId === id) el.classList.add('winner');
+  }
+  return el;
+}
+
+function matchRow(match) {
+  const row = document.createElement('div');
+  row.className = `match ${match.status}${match.isBye ? ' bye' : ''}`;
+
+  const score = document.createElement('div');
+  score.className = 'match-score';
+
+  const bothKnown = Boolean(match.teamAId && match.teamBId) && !match.isBye;
+  const a = document.createElement('input');
+  const b = document.createElement('input');
+  [a, b].forEach((input) => {
+    input.type = 'number';
+    input.min = '0';
+    input.max = String(Math.floor(match.bestOf / 2) + 1);
+    input.disabled = !bothKnown;
+  });
+  a.value = String(match.scoreA);
+  b.value = String(match.scoreB);
+
+  const commit = () => recordResult(match, Number(a.value), Number(b.value));
+  a.addEventListener('change', commit);
+  b.addEventListener('change', commit);
+
+  const dash = document.createElement('span');
+  dash.className = 'dash';
+  dash.textContent = '-';
+  score.append(a, dash, b);
+
+  row.append(side(match, 'a'), score, side(match, 'b'));
+  return row;
+}
+
+function renderMatches(list) {
+  const badges = document.getElementById('matchBadges');
+  badges.textContent = '';
+  const played = list.filter((m) => m.status === 'complete' && !m.isBye).length;
+  const total = list.filter((m) => !m.isBye).length;
+  if (total > 0) badges.appendChild(badge(`${played} / ${total} played`, played === total ? 'active' : 'count'));
+
+  document.getElementById('clearMatchesBtn').hidden = list.length === 0;
+
+  const body = document.getElementById('matchesBody');
+  body.textContent = '';
+
+  if (list.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = current && current.teamCount < 2
+      ? 'Add at least two teams, then draw the matches.'
+      : 'No matches drawn yet. Use DRAW MATCHES to build the schedule.';
+    body.appendChild(empty);
+    return;
+  }
+
+  // จัดกลุ่มตามสายและรอบ ตามลำดับที่เซิร์ฟเวอร์ส่งมา
+  let currentHead = '';
+  list.forEach((match) => {
+    const head = match.bracket === 'main' ? `Round ${match.round}` : `Group ${match.bracket} - round ${match.round}`;
+    if (head !== currentHead) {
+      currentHead = head;
+      const title = document.createElement('div');
+      title.className = 'round-head';
+      title.textContent = head;
+      body.appendChild(title);
+    }
+    body.appendChild(matchRow(match));
+  });
+}
+
+async function loadMatches() {
+  try {
+    const data = await fetchJson(`/api/tournaments/${encodeURIComponent(tournamentId)}/matches`);
+    renderMatches(data.matches || []);
+  } catch (error) {
+    showToast(error.message || 'Could not load matches', 'red');
+  }
+}
+
+async function drawMatches() {
+  const randomise = document.getElementById('randomiseDraw').checked;
+  const existing = document.getElementById('matchesBody').querySelector('.match');
+  if (existing && !window.confirm('Draw again?\n\nThe current schedule and every score recorded on it are replaced.')) {
+    return;
+  }
+
+  try {
+    const data = await fetchJson(`/api/tournaments/${encodeURIComponent(tournamentId)}/matches`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ randomise })
+    });
+    renderMatches(data.matches || []);
+    showToast(randomise ? 'Matches drawn at random' : 'Matches drawn by seed', 'green');
+  } catch (error) {
+    showToast(error.message || 'Could not draw matches', 'red');
+  }
+}
+
+async function clearMatches() {
+  if (!window.confirm('Clear the schedule?\n\nEvery match and score is removed.')) return;
+  try {
+    await fetchJson(`/api/tournaments/${encodeURIComponent(tournamentId)}/matches`, { method: 'DELETE' });
+    renderMatches([]);
+    showToast('Schedule cleared', 'blue');
+  } catch (error) {
+    showToast(error.message || 'Could not clear the schedule', 'red');
+  }
+}
+
+async function recordResult(match, scoreA, scoreB) {
+  try {
+    const data = await fetchJson(`/api/matches/${encodeURIComponent(match.id)}/result`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scoreA, scoreB })
+    });
+    renderMatches(data.matches || []);
+  } catch (error) {
+    showToast(error.message || 'Could not record the result', 'red');
+    loadMatches();
+  }
+}
+
 async function reloadTeams() {
   const data = await fetchJson(`/api/tournaments/${encodeURIComponent(tournamentId)}`);
   current = data.tournament;
@@ -672,8 +817,9 @@ async function load() {
   renderTeams(current, data.teams || []);
   renderSources();
   await refreshRegistry();
+  await loadMatches();
 
-  ['detailSection', 'teamsSection', 'obsSection'].forEach((id) => {
+  ['detailSection', 'teamsSection', 'matchesSection', 'obsSection'].forEach((id) => {
     document.getElementById(id).hidden = false;
   });
 }
@@ -708,6 +854,8 @@ document.getElementById('addTeamBtn').addEventListener('click', () => {
 document.getElementById('closeAddBtn').addEventListener('click', () => {
   document.getElementById('addPanel').hidden = true;
 });
+document.getElementById('drawBtn').addEventListener('click', drawMatches);
+document.getElementById('clearMatchesBtn').addEventListener('click', clearMatches);
 document.getElementById('addExistingBtn').addEventListener('click', addExisting);
 document.getElementById('createTeamBtn').addEventListener('click', createAndAdd);
 document.getElementById('newTeamName').addEventListener('keydown', (event) => {
