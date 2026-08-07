@@ -21,7 +21,7 @@ conversation history, everything needed to continue is here or in `CLAUDE.md`.
 | `8f57759` | TypeScript conversion of `server/` and `tests/` |
 | `7b00e06` | This document brought up to date |
 | `bf76d9e` | Phase 2 — home is the tournament list, `/tournament/:id` detail page |
-| _pending_ | Phase 3 — team registry UI, per-team logos, rosters, cap in the UI |
+| `16fe9bb` | Phase 3 — team registry UI, per-team logos, rosters, cap in the UI |
 
 Current state: **0 type errors under `strict`, 56 tests passing, packaged
 `.exe` verified correct.** Creating a tournament, adding teams from the
@@ -206,7 +206,7 @@ on read rather than maintaining incremental counters. Broadcast to a Socket.IO
 | — | TypeScript conversion | done `8f57759` |
 | 1 | Tournament + team data layer (SQLite) | done `168e21b` |
 | 2 | Home becomes the tournament list; `/tournament/:id` | done `bf76d9e` |
-| 3 | Team registry UI, logos, rosters, 128 cap in the UI | done |
+| 3 | Team registry UI, logos, rosters, 128 cap in the UI | done `16fe9bb` |
 | 4 | Formats, bracket generation, random matching | **next** |
 | 5 | Match → control panel, live-match pointer, results write back | |
 | 6 | `/teams` directory and `/teams/:id` profile with history | |
