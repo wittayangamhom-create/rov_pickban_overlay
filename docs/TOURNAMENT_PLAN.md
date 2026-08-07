@@ -22,7 +22,7 @@ conversation history, everything needed to continue is here or in `CLAUDE.md`.
 | `7b00e06` | This document brought up to date |
 | `bf76d9e` | Phase 2 — home is the tournament list, `/tournament/:id` detail page |
 | `16fe9bb` | Phase 3 — team registry UI, per-team logos, rosters, cap in the UI |
-| _pending_ | Phase 4 — bracket generation, random draw, series results |
+| `a3cf985` | Phase 4 — bracket generation, random draw, series results |
 
 Current state: **0 type errors under `strict`, 90 tests passing.** Creating a
 tournament, adding teams, editing rosters, uploading logos, drawing a bracket
@@ -214,7 +214,7 @@ on read rather than maintaining incremental counters. Broadcast to a Socket.IO
 | 1 | Tournament + team data layer (SQLite) | done `168e21b` |
 | 2 | Home becomes the tournament list; `/tournament/:id` | done `bf76d9e` |
 | 3 | Team registry UI, logos, rosters, 128 cap in the UI | done `16fe9bb` |
-| 4 | Formats, bracket generation, random matching | done (except double elim) |
+| 4 | Formats, bracket generation, random matching | done `a3cf985` (no double elim) |
 | 5 | Match → control panel, live-match pointer, results write back | **next** |
 | 6 | `/teams` directory and `/teams/:id` profile with history | |
 | 7 | Team-list overlay with staggered slide-in | |
