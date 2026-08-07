@@ -11,8 +11,8 @@ conversation history, everything needed to continue is here or in `CLAUDE.md`.
 
 ## 0. Where things stand
 
-**Last updated 2026-08-07.** Branch `feat/tournament-upgrade`, not yet merged to
-`main` and never pushed.
+**Last updated 2026-08-07.** Phases 0–3 are merged into `main`. Not pushed to
+`origin` yet — `origin/main` is still at `34ea94f`.
 
 | Commit | What |
 |---|---|
@@ -233,8 +233,8 @@ pattern already in `public/js/overlay.js`.
   caster drive the draft while OBS has focus. The app's own hotkeys page
   currently implies this is impossible — true for a browser page, not for the
   Electron main process.
-- **Merge to `main`.** Seven commits sit on `feat/tournament-upgrade`, unpushed.
-  Phases 0–2 are verified and independently useful; the diff only grows from here.
+- **Push to `origin`.** Phases 0–3 are merged into local `main`, but
+  `origin/main` is still at `34ea94f`. Nothing is on the remote yet.
 - **Test goals 2–4** (game modes consistent, no overlapping random matches,
   room for future development) land with Phase 4. Goal 1 (128-team cap) is done
   and tested.
