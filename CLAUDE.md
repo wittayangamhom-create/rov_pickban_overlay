@@ -94,6 +94,22 @@ escapes through some tooling turns them into real bytes in the file. `lib/saniti
 compares char codes instead, and `npm run check` fails the build if raw control bytes
 appear anywhere.
 
+## Standing rule: keep the plan current
+
+**Any work that touches a phase must update `docs/TOURNAMENT_PLAN.md` in the same
+change.** Not afterwards, not "later" — the same commit or the one straight after.
+
+That document is the single source of truth for this upgrade and is written to
+stand alone for a session with no conversation history. If it drifts, the next
+session builds against a design that no longer exists. This already happened
+once: the plan still described JSON files after Phase 1 had shipped SQLite.
+
+What to update when a phase moves:
+- §0 status — commit id, test count, what is next
+- §7 phase table — mark the phase done with its commit
+- §8 open items — remove what is finished, add what the work exposed
+- §9 traps — add anything that cost real debugging time
+
 ## Where new work goes
 
 - new page → `public/<name>.html` + `public/js/<name>.js`, route in `server/http/pages.ts`
