@@ -11,8 +11,8 @@ conversation history, everything needed to continue is here or in `CLAUDE.md`.
 
 ## 0. Where things stand
 
-**Last updated 2026-08-07.** Branch `refactor/phase-0` (now holds more than
-Phase 0 — worth renaming). Not yet merged to `main`.
+**Last updated 2026-08-07.** Branch `feat/tournament-upgrade`, not yet merged to
+`main` and never pushed.
 
 | Commit | What |
 |---|---|
@@ -214,8 +214,8 @@ pattern already in `public/js/overlay.js`.
   caster drive the draft while OBS has focus. The app's own hotkeys page
   currently implies this is impossible — true for a browser page, not for the
   Electron main process.
-- **Branch name.** `refactor/phase-0` now carries Phase 1 and the TypeScript
-  conversion too.
+- **Merge to `main`.** Four commits sit on `feat/tournament-upgrade`, unpushed.
+  Decide whether to merge before Phase 2 or keep accumulating.
 - **Test goals 2–4** (game modes consistent, no overlapping random matches,
   room for future development) land with Phase 4. Goal 1 (128-team cap) is done
   and tested.
