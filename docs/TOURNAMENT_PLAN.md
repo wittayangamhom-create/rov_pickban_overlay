@@ -19,13 +19,19 @@ conversation history, everything needed to continue is here or in `CLAUDE.md`.
 | `07914a2` | Phase 0 — split `server.js` into modules, shared client lib, 23 tests, `npm run check` |
 | `168e21b` | Phase 1 — SQLite data layer for tournaments and teams, 16 more tests |
 | `8f57759` | TypeScript conversion of `server/` and `tests/` |
+| `7b00e06` | This document brought up to date |
+| `bf76d9e` | Phase 2 — home is the tournament list, `/tournament/:id` detail page |
 
-Current state: **0 type errors under `strict`, 39 tests passing, all 14 routes
-serving, packaged `.exe` verified correct.**
+Current state: **0 type errors under `strict`, 45 tests passing, packaged
+`.exe` verified correct.** Creating a tournament, editing it and deleting it
+all work end to end in the browser.
 
-**Next up: Phase 2.** The data layer from Phase 1 has no consumer yet — nothing
-in `server/index.ts` imports the stores, so no `tournament.db` is created at
-startup. Phase 2 is where it stops being dead code.
+`tournament.db` is created on first use of a tournament feature, not at
+startup, so anyone using only the overlay never grows a database file. It is
+gitignored — it is user data, not source.
+
+**Next up: Phase 3** — the team registry UI. The tournament page currently
+shows the roster count and cap but has no way to add teams.
 
 ---
 
@@ -190,8 +196,8 @@ on read rather than maintaining incremental counters. Broadcast to a Socket.IO
 | 0 | Modularize `server.js`, shared client lib, tests, `npm run check` | done `07914a2` |
 | — | TypeScript conversion | done `8f57759` |
 | 1 | Tournament + team data layer (SQLite) | done `168e21b` |
-| 2 | Home becomes the tournament list; `/tournament/:id` | **next** |
-| 3 | Team registry UI, logos, rosters, 128 cap in the UI | |
+| 2 | Home becomes the tournament list; `/tournament/:id` | done `bf76d9e` |
+| 3 | Team registry UI, logos, rosters, 128 cap in the UI | **next** |
 | 4 | Formats, bracket generation, random matching | |
 | 5 | Match → control panel, live-match pointer, results write back | |
 | 6 | `/teams` directory and `/teams/:id` profile with history | |
@@ -206,6 +212,7 @@ pattern already in `public/js/overlay.js`.
 
 ## 8. Open items
 
+- **A relative asset path on `/tournament/:id` breaks silently** — see §9. Any new nested page must use absolute `/js/` and `/css/` paths.
 - **`public/js/` is not TypeScript.** Types stop at the network boundary. Doing
   it needs a second tsconfig (browser target, no module syntax, globals like
   `window.RovClient`) and a serving strategy for the output. Worth doing before
