@@ -1,0 +1,215 @@
+/* สายการแข่งแบบเห็นภาพ
+ *
+ * การจัดวางใช้หลักเดียว: ทุกรอบสูงเท่ากัน แล้วให้ช่องในรอบนั้นแบ่งความสูง
+ * เท่าๆ กันด้วย flex:1 รอบที่ 2 มีช่องครึ่งหนึ่งของรอบแรก แต่ละช่องจึงสูงเป็น
+ * สองเท่า และเมื่อจัดกล่องไว้กลางช่อง มันจะไปอยู่กึ่งกลางระหว่างสองคู่ที่
+ * ป้อนเข้ามาพอดีโดยอัตโนมัติ ไม่ต้องคำนวณตำแหน่งเป็นพิกเซลเลย
+ *
+ * เส้นเชื่อมวาดด้วย pseudo-element:
+ *   .slot::after   เส้นนอนที่ยื่นออกไปทางขวา
+ *   .slot::before  เส้นตั้งครึ่งบน/ครึ่งล่าง ที่ไปบรรจบกับคู่ของมัน
+ *   .mbox::before  เส้นนอนที่รับเข้ามาทางซ้าย
+ */
+
+.bracket-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--s1);
+}
+.bracket-title {
+  font-family: var(--hf);
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: #dbeafe;
+}
+.bracket-hint { font-size: 11px; color: var(--muted); }
+.bracket-head .spacer { margin-left: auto; }
+
+.bracket-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 18px;
+}
+
+.bracket-section { margin-bottom: 26px; }
+.bracket-section-title {
+  font-family: var(--hf);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 10px 2px;
+}
+
+.bracket { display: flex; align-items: stretch; min-width: min-content; }
+
+.round { display: flex; flex-direction: column; min-width: 208px; }
+.round-title {
+  background: var(--s3);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  margin: 0 24px 10px 0;
+  padding: 5px 10px;
+  font-family: var(--hf);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--muted2);
+  text-align: center;
+  white-space: nowrap;
+}
+.round-body { flex: 1; display: flex; flex-direction: column; }
+
+.slot {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding-right: 24px;
+  min-height: 54px;
+}
+
+/* เส้นนอนที่ยื่นออกไปทางขวาของกล่อง */
+.round:not(:last-child) .slot::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  width: 24px;
+  top: 50%;
+  border-top: 1px solid var(--border2);
+}
+
+/* เส้นตั้งที่ไปบรรจบกับคู่ของมัน
+   ช่องบนของคู่ลากลง ช่องล่างลากขึ้น มาเจอกันที่รอยต่อระหว่างสองช่องพอดี */
+.round:not(:last-child) .slot.pair-top::before,
+.round:not(:last-child) .slot.pair-bottom::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  height: 50%;
+  border-right: 1px solid var(--border2);
+}
+.round:not(:last-child) .slot.pair-top::before { top: 50%; }
+.round:not(:last-child) .slot.pair-bottom::before { bottom: 50%; }
+
+/* เส้นนอนที่รับเข้ามาทางซ้าย */
+.round:not(:first-child) .mbox::before {
+  content: '';
+  position: absolute;
+  left: -24px;
+  top: 50%;
+  width: 24px;
+  border-top: 1px solid var(--border2);
+}
+
+/* MATCH BOX -------------------------------------------------------- */
+
+.mbox {
+  position: relative;
+  width: 100%;
+  background: var(--s3);
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  overflow: hidden;
+  cursor: default;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.mbox.playable { cursor: pointer; }
+.mbox.playable:hover { border-color: var(--blue); box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35); }
+.mbox.complete { border-color: rgba(16, 185, 129, 0.4); }
+.mbox.live { border-color: rgba(16, 185, 129, 0.9); box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.5); }
+.mbox.bye { opacity: 0.45; }
+
+.mrow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 7px;
+  min-height: 25px;
+}
+.mrow + .mrow { border-top: 1px solid rgba(0, 0, 0, 0.45); }
+
+.mrow .seed {
+  flex: 0 0 16px;
+  font-family: var(--hf);
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--muted);
+  text-align: right;
+}
+.mrow .nm {
+  flex: 1;
+  font-family: var(--hf);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mrow .nm.tbd {
+  color: var(--muted);
+  font-style: italic;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+}
+.mrow.won .nm { color: #6ee7b7; }
+.mrow.lost .nm { color: var(--muted2); }
+
+.mrow .sc {
+  flex: 0 0 20px;
+  text-align: center;
+  font-family: var(--hf);
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--muted2);
+  background: rgba(0, 0, 0, 0.28);
+  border-radius: 3px;
+  padding: 1px 0;
+}
+.mrow.won .sc { color: #6ee7b7; }
+
+/* เลขคู่ วางบนเส้นเชื่อม เหมือนที่ Challonge ทำ
+   ไว้อ้างอิงตอนคุยกันว่า "คู่ที่ 21" */
+.mno {
+  position: absolute;
+  right: -21px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--hf);
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--muted);
+  background: var(--bg);
+  padding: 1px 3px;
+  pointer-events: none;
+}
+.round:last-child .mno { display: none; }
+
+/* ROUND ROBIN / GROUPS --------------------------------------------- */
+/* ไม่มีสายให้ไหลต่อ จึงไม่มีเส้นเชื่อม แค่จัดเป็นคอลัมน์ตามรอบ */
+
+.bracket.flat .slot { padding-right: 14px; min-height: 0; flex: 0 0 auto; margin-bottom: 7px; }
+.bracket.flat .round-title { margin-right: 14px; }
+
+.bracket-empty {
+  background: var(--s1);
+  border: 1px dashed var(--border2);
+  border-radius: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--muted2);
+  font-size: 13px;
+  line-height: 1.8;
+}

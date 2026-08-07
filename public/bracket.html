@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bracket - ROV Overlay Tool</title>
+<!-- หน้านี้อยู่ที่ /tournament/:id/bracket ลึกสองชั้น
+     path ทุกอันต้องขึ้นต้นด้วย / เท่านั้น -->
+<link rel="stylesheet" href="/css/app.css">
+<link rel="stylesheet" href="/css/bracket.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">ROV <span>|</span> BRACKET</div>
+  <nav class="topnav" aria-label="Pages">
+    <a class="tlink" href="/">HOME</a>
+    <a class="tlink" href="/control">CONTROL</a>
+    <a class="tlink" href="/presets">PRESETS</a>
+    <a class="tlink" href="/design">DESIGN</a>
+    <a class="tlink" href="/hotkeys">HOTKEYS</a>
+  </nav>
+</div>
+
+<div class="bracket-head">
+  <a class="tlink" id="backLink" href="/">&larr; TOURNAMENT</a>
+  <div class="bracket-title" id="headName"></div>
+  <div class="status-tags" id="headBadges"></div>
+  <div class="spacer"></div>
+  <span class="bracket-hint">Click a match to put it on air</span>
+</div>
+
+<!-- เลื่อนแนวนอนได้ สายใหญ่ๆ กว้างเกินจอแน่นอน -->
+<div class="bracket-scroll" id="bracketScroll">
+  <div id="bracketBody"></div>
+</div>
+
+<div class="toast" id="toast_el"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/lib/app-client.js"></script>
+<script src="/js/bracket.js"></script>
+</body>
+</html>

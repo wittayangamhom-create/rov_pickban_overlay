@@ -38,6 +38,12 @@ export function pageRoutes(): Router {
     res.sendFile(path.join(PUBLIC_DIR, 'tournament.html'));
   });
 
+  // สายการแข่งแบบเห็นภาพ อยู่ลึกสองชั้น (/tournament/:id/bracket)
+  // path ของ asset ยิ่งต้องเป็นแบบเต็ม
+  router.get('/tournament/:id/bracket', (_req, res) => {
+    res.sendFile(path.join(PUBLIC_DIR, 'bracket.html'));
+  });
+
   router.get('/index.html', (_req, res) => res.redirect('/control'));
 
   return router;

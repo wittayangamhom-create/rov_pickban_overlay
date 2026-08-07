@@ -747,6 +747,8 @@ function renderMatches(list) {
   if (total > 0) badges.appendChild(badge(`${played} / ${total} played`, played === total ? 'active' : 'count'));
 
   document.getElementById('clearMatchesBtn').hidden = list.length === 0;
+  // ยังไม่มีคู่ก็ไม่ต้องให้กดเข้าไปดูสายเปล่าๆ
+  document.getElementById('bracketLink').hidden = list.length === 0;
 
   const body = document.getElementById('matchesBody');
   body.textContent = '';
@@ -887,6 +889,7 @@ document.getElementById('addTeamBtn').addEventListener('click', () => {
 document.getElementById('closeAddBtn').addEventListener('click', () => {
   document.getElementById('addPanel').hidden = true;
 });
+document.getElementById('bracketLink').href = withToken(`/tournament/${encodeURIComponent(tournamentId)}/bracket`);
 document.getElementById('drawBtn').addEventListener('click', drawMatches);
 document.getElementById('clearMatchesBtn').addEventListener('click', clearMatches);
 document.getElementById('addExistingBtn').addEventListener('click', addExisting);

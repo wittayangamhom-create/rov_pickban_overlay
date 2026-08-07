@@ -38,6 +38,17 @@ item: games drafted before capture existed would have been unrecoverable.
 startup, so anyone using only the overlay never grows a database file. It is
 gitignored — it is user data, not source.
 
+**Bracket view** lives at `/tournament/:id/bracket`, reached from the BRACKET
+VIEW button next to DRAW MATCHES. Rounds are columns, connectors are drawn with
+CSS pseudo-elements, and clicking a playable match puts it on air and opens the
+control panel. Late rounds are named Final / Semifinals / Quarterfinals rather
+than by number.
+
+The layout uses one rule: every round column is the same height and its slots
+share it with `flex: 1`. Round 2 has half as many slots, so each is twice as
+tall, and centring the box in its slot lands it exactly between the two feeding
+it. No pixel maths, and it holds for any bracket size.
+
 **Next up: Phase 6** — the `/teams` directory and `/teams/:id` profile with
 match history. After that Phase 7 (team-list overlay) and Phase 8 (analytics,
 which now has real data to read).
@@ -45,7 +56,12 @@ which now has real data to read).
 **Double elimination is deliberately not generated.** The losers bracket has
 its own routing rules and shipping it half-right is worse than refusing it, so
 `generateMatches` returns a clear error and the format stays selectable but
-undrawable. It is the main gap in Phase 4.
+undrawable. It is now the largest single gap: the Challonge layout the user
+asked the bracket page to match is a double-elimination bracket, and the
+"Losers Round 1-6" half of it cannot appear until this exists.
+
+The bracket page already groups matches by their `bracket` column, so a losers
+bracket will render as its own labelled section with no change to `bracket.js`.
 
 ---
 
@@ -277,9 +293,10 @@ Each of these cost real debugging time. They are also in `CLAUDE.md`.
   it against the live roster.
 - **`switchTeams` swaps sides wholesale.** Side-split statistics need the side
   recorded at capture time.
-- **`/tournament/:id` sits a level deeper than every other page.** Its HTML must
-  use absolute `/js/…` and `/css/…` paths; a relative `js/x.js` resolves to
-  `/tournament/js/x.js` and 404s. Covered by a test in `tournament-api.test.ts`.
+- **Nested pages must use absolute asset paths.** `/tournament/:id` is one level
+  deeper than the rest and `/tournament/:id/bracket` is two; a relative
+  `js/x.js` resolves under the tournament path and 404s. Covered by a test in
+  `tournament-api.test.ts`.
 - **Closing a SQLite database before deleting its folder** — Windows refuses the
   delete while WAL handles are open. Test cleanup calls `closeDatabase()` first.
 - **In an elimination bracket, `null` means two different things.** In round 1
