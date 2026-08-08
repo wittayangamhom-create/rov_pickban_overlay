@@ -31,6 +31,11 @@ export interface Match {
   nextRound: number | null;
   nextSlot: number | null;
   nextSide: number | null;
+  nextBracket: string | null;
+  loserRound: number | null;
+  loserSlot: number | null;
+  loserSide: number | null;
+  loserBracket: string | null;
 }
 
 export type MatchResult = { match: Match; error?: undefined } | { error: string; match?: undefined };
@@ -43,6 +48,9 @@ interface MatchRow {
   team_a_id: string | null; team_b_id: string | null; best_of: number;
   status: string; score_a: number; score_b: number; winner_id: string | null;
   is_bye: number; next_round: number | null; next_slot: number | null; next_side: number | null;
+  next_bracket: string | null;
+  loser_round: number | null; loser_slot: number | null; loser_side: number | null;
+  loser_bracket: string | null;
 }
 
 function rowToMatch(row: MatchRow): Match {
@@ -62,7 +70,12 @@ function rowToMatch(row: MatchRow): Match {
     isBye: row.is_bye === 1,
     nextRound: row.next_round,
     nextSlot: row.next_slot,
-    nextSide: row.next_side
+    nextSide: row.next_side,
+    nextBracket: row.next_bracket,
+    loserRound: row.loser_round,
+    loserSlot: row.loser_slot,
+    loserSide: row.loser_side,
+    loserBracket: row.loser_bracket
   };
 }
 
@@ -79,8 +92,10 @@ export function createMatchStore(db: DatabaseSync, tournaments: TournamentStore)
     insert: db.prepare(
       `INSERT INTO matches
        (id, tournament_id, bracket, round, slot, team_a_id, team_b_id, best_of,
-        status, score_a, score_b, winner_id, is_bye, next_round, next_slot, next_side, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?)`
+        status, score_a, score_b, winner_id, is_bye,
+        next_round, next_slot, next_side, next_bracket,
+        loser_round, loser_slot, loser_side, loser_bracket, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ),
     clear: db.prepare('DELETE FROM matches WHERE tournament_id = ?'),
     byTournament: db.prepare(
@@ -99,15 +114,57 @@ export function createMatchStore(db: DatabaseSync, tournaments: TournamentStore)
 
   const findRow = (id: string) => q.byId.get(id) as MatchRow | undefined;
 
-  // ผู้ชนะเดินไปคู่ถัดไปตามตำแหน่งที่วางไว้ตอนสร้างสาย
-  function advance(match: Match, winnerId: string): void {
-    if (match.nextRound === null || match.nextSlot === null || match.nextSide === null) return;
+  // ส่งทีมไปยังคู่ปลายทางที่วางไว้ตอนสร้างสาย
+  // ใช้ทั้งกับผู้ชนะ และกับผู้แพ้ที่ตกลงไปสายแพ้ในแบบแพ้สองครั้งคัดออก
+  //
+  // bracket ต้องอ่านจากปลายทาง ไม่ใช่จากคู่ต้นทาง
+  // ผู้แพ้จากสายชนะไปโผล่คนละสาย ถ้าใช้ bracket ของต้นทางจะไปผิดที่
+  function sendTo(
+    tournamentId: string,
+    dest: { bracket: string | null; round: number | null; slot: number | null; side: number | null },
+    teamId: string
+  ): void {
+    if (dest.round === null || dest.slot === null || dest.side === null) return;
     const next = q.atPosition.get(
-      match.tournamentId, match.bracket, match.nextRound, match.nextSlot
+      tournamentId, dest.bracket ?? 'main', dest.round, dest.slot
     ) as MatchRow | undefined;
     if (!next) return;
-    if (match.nextSide === 0) q.setSide.run(winnerId, next.id);
-    else q.setSideB.run(winnerId, next.id);
+    if (dest.side === 0) q.setSide.run(teamId, next.id);
+    else q.setSideB.run(teamId, next.id);
+  }
+
+  function advance(match: Match, winnerId: string): void {
+    sendTo(match.tournamentId, {
+      bracket: match.nextBracket, round: match.nextRound,
+      slot: match.nextSlot, side: match.nextSide
+    }, winnerId);
+  }
+
+  function dropLoser(match: Match, loserId: string): void {
+    sendTo(match.tournamentId, {
+      bracket: match.loserBracket, round: match.loserRound,
+      slot: match.loserSlot, side: match.loserSide
+    }, loserId);
+  }
+
+  // รอบชิงแบบต้องชนะสองครั้ง
+  //
+  // แชมป์สายชนะ (ฝั่ง A) ยังไม่เคยแพ้ใครเลย ถ้าชนะนัดแรกก็จบ
+  // นัดตัดสินไม่ต้องเล่น จึงล้างทีมออกจากนัดนั้นเพื่อไม่ให้กดผลได้
+  //
+  // ถ้าแชมป์สายแพ้ (ฝั่ง B) ชนะ = ต่างฝ่ายต่างแพ้คนละครั้ง เสมอกัน
+  // ต้องเล่นนัดตัดสิน ซึ่ง advance/dropLoser เติมทีมให้เรียบร้อยแล้ว
+  function settleGrandFinal(match: Match, winnerId: string): void {
+    if (match.bracket !== 'grand' || match.round !== 1) return;
+
+    const reset = q.atPosition.get(match.tournamentId, 'grand', 2, 0) as MatchRow | undefined;
+    if (!reset) return;
+
+    const winnersBracketChampWon = winnerId === match.teamAId;
+    if (winnersBracketChampWon) {
+      q.setSide.run(null, reset.id);
+      q.setSideB.run(null, reset.id);
+    }
   }
 
   const store: MatchStore = {
@@ -149,7 +206,10 @@ export function createMatchStore(db: DatabaseSync, tournaments: TournamentStore)
             m.teamAId, m.teamBId, tournament.bestOf,
             m.isBye ? 'complete' : 'pending',
             m.winnerId, m.isBye ? 1 : 0,
-            m.nextRound, m.nextSlot, m.nextSide, now
+            m.winnerTo?.round ?? null, m.winnerTo?.slot ?? null,
+            m.winnerTo?.side ?? null, m.winnerTo?.bracket ?? null,
+            m.loserTo?.round ?? null, m.loserTo?.slot ?? null,
+            m.loserTo?.side ?? null, m.loserTo?.bracket ?? null, now
           );
         });
         db.exec('COMMIT');
@@ -190,7 +250,13 @@ export function createMatchStore(db: DatabaseSync, tournaments: TournamentStore)
 
       q.setResult.run(a, b, winnerId, status, id);
       const updated = rowToMatch(findRow(id) as MatchRow);
-      if (winnerId) advance(updated, winnerId);
+
+      if (winnerId) {
+        const loserId = winnerId === updated.teamAId ? updated.teamBId : updated.teamAId;
+        advance(updated, winnerId);
+        if (loserId) dropLoser(updated, loserId);
+        settleGrandFinal(updated, winnerId);
+      }
 
       return { match: updated };
     }

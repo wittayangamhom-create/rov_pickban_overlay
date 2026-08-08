@@ -145,5 +145,25 @@ export const MIGRATIONS: readonly string[] = [
     game_id  TEXT REFERENCES games(id) ON DELETE SET NULL,
     since    INTEGER NOT NULL
   );
+  `,
+
+  // 4 - เส้นทางของผู้แพ้ สำหรับแบบแพ้สองครั้งคัดออก
+  //
+  // ขั้นที่ 2 ปล่อยไปแล้ว แก้ของเดิมไม่ได้ จึงต้องเพิ่มคอลัมน์ด้วย ALTER TABLE
+  // เครื่องที่อัปเดตกับเครื่องที่ลงใหม่จะได้สคีมาเหมือนกัน
+  //
+  // next_bracket จำเป็นเพราะผู้ชนะข้ามสายได้แล้ว
+  // (แชมป์สายชนะและแชมป์สายแพ้ไปเจอกันที่สาย 'grand')
+  // ของเดิมเดาว่าปลายทางอยู่สายเดียวกับต้นทางเสมอ ซึ่งใช้ไม่ได้อีกต่อไป
+  `
+  ALTER TABLE matches ADD COLUMN next_bracket  TEXT;
+  ALTER TABLE matches ADD COLUMN loser_bracket TEXT;
+  ALTER TABLE matches ADD COLUMN loser_round   INTEGER;
+  ALTER TABLE matches ADD COLUMN loser_slot    INTEGER;
+  ALTER TABLE matches ADD COLUMN loser_side    INTEGER;
+
+  -- สายที่วาดไว้ก่อนหน้านี้เป็นแบบแพ้ครั้งเดียวคัดออกทั้งหมด
+  -- ผู้ชนะอยู่สายเดิมเสมอ เติมค่าย้อนหลังให้ตรงกับพฤติกรรมเดิม
+  UPDATE matches SET next_bracket = bracket WHERE next_round IS NOT NULL;
   `
 ];

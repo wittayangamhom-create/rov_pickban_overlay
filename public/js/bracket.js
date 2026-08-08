@@ -119,8 +119,17 @@ function roundColumn(title, matches, numbers, elimination) {
   return round;
 }
 
+// ชื่อหัวข้อของแต่ละสาย
+function sectionTitle(name) {
+  if (name === 'main') return 'Winners bracket';
+  if (name === 'losers') return 'Losers bracket';
+  if (name === 'grand') return 'Grand final';
+  return `Group ${name}`;
+}
+
 // ชื่อรอบท้ายๆ เรียกตามที่คนเรียกกันจริง ไม่ใช่ "รอบที่ 5"
 function roundTitle(roundNo, totalRounds, bracketName) {
+  if (bracketName === 'grand') return roundNo === 1 ? 'Grand final' : 'Reset (if needed)';
   if (bracketName !== 'main') return `Round ${roundNo}`;
   const fromEnd = totalRounds - roundNo;
   if (fromEnd === 0) return 'Final';
@@ -161,7 +170,7 @@ function render(matches) {
     if (brackets.size > 1 || name !== 'main') {
       const title = document.createElement('div');
       title.className = 'bracket-section-title';
-      title.textContent = name === 'main' ? 'Main bracket' : `Group ${name}`;
+      title.textContent = sectionTitle(name);
       section.appendChild(title);
     }
 

@@ -25,7 +25,7 @@ export interface FormatSpec {
 
 export const FORMATS = {
   single_elim: { label: 'Single elimination', minTeams: 2, maxTeams: MAX_TEAMS },
-  double_elim: { label: 'Double elimination', minTeams: 2, maxTeams: MAX_TEAMS },
+  double_elim: { label: 'Double elimination', minTeams: 4, maxTeams: MAX_TEAMS },
   round_robin: { label: 'Round robin', minTeams: 2, maxTeams: ROUND_ROBIN_MAX_TEAMS },
   group_stage: { label: 'Group stage', minTeams: 4, maxTeams: MAX_TEAMS }
 } as const satisfies Record<string, FormatSpec>;

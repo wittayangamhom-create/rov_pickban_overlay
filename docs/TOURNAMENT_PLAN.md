@@ -23,6 +23,7 @@ The bracket page is committed locally on top and **is** verified in a browser.
 | `bf76d9e` | Phase 2 — home is the tournament list, `/tournament/:id` detail page |
 | `16fe9bb` | Phase 3 — team registry UI, per-team logos, rosters, cap in the UI |
 | `a3cf985` | Phase 4 — bracket generation, random draw, series results |
+| _pending_ | Double elimination with grand-final reset |
 | `72ddb6f` | Phase 5 — match to control panel, live pointer, **draft capture** |
 | `418b23d` | Bracket page at `/tournament/:id/bracket` |
 
@@ -54,15 +55,14 @@ it. No pixel maths, and it holds for any bracket size.
 match history. After that Phase 7 (team-list overlay) and Phase 8 (analytics,
 which now has real data to read).
 
-**Double elimination is deliberately not generated.** The losers bracket has
-its own routing rules and shipping it half-right is worse than refusing it, so
-`generateMatches` returns a clear error and the format stays selectable but
-undrawable. It is now the largest single gap: the Challonge layout the user
-asked the bracket page to match is a double-elimination bracket, and the
-"Losers Round 1-6" half of it cannot appear until this exists.
+**Double elimination is implemented**, with the grand-final reset: the losers
+bracket winner must beat the winners bracket winner twice, because the winners
+side has not lost yet. If the winners side takes the first grand final, the
+reset match is emptied so it cannot be played.
 
-The bracket page already groups matches by their `bracket` column, so a losers
-bracket will render as its own labelled section with no change to `bracket.js`.
+Losers routing is the fragile part, so the tests play whole brackets out and
+assert nobody survives a second loss, every destination exists, and no two
+matches feed the same slot.
 
 ---
 
@@ -130,7 +130,7 @@ missing keys from defaults, which is why today's older `state.json` still loads.
 machines that upgraded and machines that installed fresh end up with different
 schemas. Current step 1 creates: `teams`, `team_players`, `tournaments`,
 `tournament_teams`. Step 2 adds `matches`. Step 3 adds `games`, `game_slots`
-and `live_match`.
+and `live_match`. Step 4 adds loser-routing columns to `matches`.
 
 Foreign keys and WAL are enabled on open. `openDatabase(path)` takes a path so
 tests use `':memory:'` and never touch the user's file.
@@ -180,7 +180,7 @@ also block it for good UX, but the rule holds even if the page is bypassed.
 | Format | Min | Max |
 |---|---|---|
 | `single_elim` | 2 | 128 |
-| `double_elim` | 2 | 128 |
+| `double_elim` | 4 | 128 |
 | `round_robin` | 2 | **24** |
 | `group_stage` | 4 | 128 |
 
@@ -246,7 +246,7 @@ on read rather than maintaining incremental counters. Broadcast to a Socket.IO
 | 1 | Tournament + team data layer (SQLite) | done `168e21b` |
 | 2 | Home becomes the tournament list; `/tournament/:id` | done `bf76d9e` |
 | 3 | Team registry UI, logos, rosters, 128 cap in the UI | done `16fe9bb` |
-| 4 | Formats, bracket generation, random matching | done `a3cf985` (no double elim) |
+| 4 | Formats, bracket generation, random matching | done `a3cf985` + double elim |
 | 5 | Match → control panel, live pointer, draft capture | done `72ddb6f` |
 | 6 | `/teams` directory and `/teams/:id` profile with history | **next** |
 | 7 | Team-list overlay with staggered slide-in | |

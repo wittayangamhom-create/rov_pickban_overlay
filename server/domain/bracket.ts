@@ -10,17 +10,29 @@
 
 import type { BestOf, TournamentFormat } from './tournament';
 
+// ปลายทางของทีมหนึ่งทีมหลังจบคู่ ใช้ทั้งกับผู้ชนะและผู้แพ้
+export interface Destination {
+  bracket: string;
+  round: number;
+  slot: number;
+  side: 0 | 1;
+}
+
 export interface PlannedMatch {
-  // 'main' สำหรับสายเดียว หรือชื่อกลุ่ม ('A', 'B', ...) ตอนแบ่งสาย
+  // 'main'   = สายชนะ (หรือสายเดียวในแบบแพ้คัดออก)
+  // 'losers' = สายแพ้ (เฉพาะแพ้สองครั้งคัดออก)
+  // 'grand'  = รอบชิงระหว่างแชมป์สองสาย
+  // หรือชื่อกลุ่ม ('A', 'B', ...) ตอนแบ่งสาย
   bracket: string;
   round: number;      // เริ่มที่ 1
   slot: number;       // ลำดับในรอบนั้น เริ่มที่ 0
   teamAId: string | null;
   teamBId: string | null;
-  // ผู้ชนะไปคู่ไหนต่อ (เฉพาะแพ้คัดออก) null = จบสาย
-  nextRound: number | null;
-  nextSlot: number | null;
-  nextSide: 0 | 1 | null;
+  // ผู้ชนะไปไหนต่อ null = จบสาย
+  winnerTo: Destination | null;
+  // ผู้แพ้ไปไหนต่อ มีเฉพาะแพ้สองครั้งคัดออก
+  // null = ตกรอบ (แพ้ครั้งที่สอง หรือกติกาแพ้ครั้งเดียวตกรอบ)
+  loserTo: Destination | null;
   // คู่ที่มีทีมเดียว = บาย ผู้ชนะรู้ผลตั้งแต่ยังไม่แข่ง
   isBye: boolean;
   winnerId: string | null;
@@ -156,9 +168,14 @@ export function singleElimination(teamIds: readonly string[]): PlannedMatch[] {
         slot,
         teamAId,
         teamBId,
-        nextRound: isFinal ? null : round + 1,
-        nextSlot: isFinal ? null : Math.floor(slot / 2),
-        nextSide: isFinal ? null : ((slot % 2) as 0 | 1),
+        winnerTo: isFinal ? null : {
+          bracket: 'main',
+          round: round + 1,
+          slot: Math.floor(slot / 2),
+          side: (slot % 2) as 0 | 1
+        },
+        // แพ้ครั้งเดียวตกรอบ ไม่ต้องส่งผู้แพ้ไปไหน
+        loserTo: null,
         isBye,
         winnerId
       });
@@ -178,6 +195,122 @@ export function singleElimination(teamIds: readonly string[]): PlannedMatch[] {
 
 function isFirstRoundEmpty(m: PlannedMatch): boolean {
   return m.round === 1 && m.teamAId === null && m.teamBId === null;
+}
+
+// ---- DOUBLE ELIMINATION ---------------------------------------------
+//
+// สองสายเดินคู่กัน แพ้ในสายชนะแล้วตกลงไปสายแพ้ ไม่ใช่ตกรอบทันที
+// แพ้ในสายแพ้อีกครั้งถึงจะตกรอบจริง
+//
+// โครงของสายแพ้ สำหรับสายขนาด S และสายชนะ W = log2(S) รอบ:
+//   สายแพ้มี 2(W-1) รอบ สลับกันสองแบบ
+//   รอบคี่  = จับผู้ชนะในสายแพ้มาเจอกันเอง (ลดจำนวนคนลงครึ่งหนึ่ง)
+//   รอบคู่  = ผู้ชนะสายแพ้ เจอ ผู้แพ้ที่เพิ่งตกลงมาจากสายชนะ
+// รอบที่ 1 พิเศษหน่อย เพราะจับผู้แพ้จากสายชนะรอบแรกมาเจอกันเองเลย
+//
+// รอบชิงใช้กติกา "ต้องชนะสองครั้ง": แชมป์สายชนะยังไม่เคยแพ้ใคร
+// ถ้าแพ้ในรอบชิงนัดแรกก็เพิ่งแพ้ครั้งแรก จึงต้องเล่นนัดตัดสินอีกนัด
+// นัดนั้นจะถูกใช้ก็ต่อเมื่อแชมป์สายแพ้ชนะนัดแรกเท่านั้น
+
+const WINNERS = 'main';
+const LOSERS = 'losers';
+const GRAND = 'grand';
+
+// จำนวนคู่ในสายแพ้รอบที่ r (นับจาก 1)
+function losersRoundSize(size: number, round: number): number {
+  const k = Math.ceil(round / 2);      // คู่รอบคี่กับรอบคู่ถัดไปมีขนาดเท่ากัน
+  return size / 2 ** (k + 1);
+}
+
+export function doubleElimination(teamIds: readonly string[]): PlannedMatch[] {
+  if (teamIds.length < 4) return [];
+
+  const size = nextPowerOfTwo(teamIds.length);
+  const wbRounds = Math.log2(size);
+  const lbRounds = 2 * (wbRounds - 1);
+
+  // สายชนะเหมือนแพ้คัดออกทุกอย่าง ต่างแค่ผู้แพ้มีที่ไป
+  const matches: PlannedMatch[] = singleElimination(teamIds).map((m) => ({ ...m }));
+
+  matches.forEach((m) => {
+    if (m.isBye) return;             // บายไม่มีผู้แพ้ให้ส่งไปไหน
+
+    if (m.round === 1) {
+      // ผู้แพ้รอบแรกจับคู่กันเองในสายแพ้รอบ 1
+      m.loserTo = { bracket: LOSERS, round: 1, slot: Math.floor(m.slot / 2), side: (m.slot % 2) as 0 | 1 };
+      return;
+    }
+
+    // ผู้แพ้จากสายชนะรอบ r (r >= 2) ตกลงไปสายแพ้รอบคู่ที่ 2(r-1)
+    const lbRound = 2 * (m.round - 1);
+    const count = losersRoundSize(size, lbRound);
+    // สลับลำดับในรอบเว้นรอบ เพื่อไม่ให้เจอคนที่เพิ่งเขี่ยตัวเองตกซ้ำทันที
+    const flip = (m.round % 2) === 0;
+    const slot = flip ? count - 1 - m.slot : m.slot;
+    m.loserTo = { bracket: LOSERS, round: lbRound, slot, side: 1 };
+  });
+
+  // สายแพ้
+  for (let round = 1; round <= lbRounds; round += 1) {
+    const count = losersRoundSize(size, round);
+    const isLast = round === lbRounds;
+    const isMinor = round === 1 || round % 2 === 1;   // จับกันเองในสายแพ้
+
+    for (let slot = 0; slot < count; slot += 1) {
+      matches.push({
+        bracket: LOSERS,
+        round,
+        slot,
+        teamAId: null,
+        teamBId: null,
+        winnerTo: isLast
+          ? { bracket: GRAND, round: 1, slot: 0, side: 1 }
+          : isMinor
+            // รอบคี่ -> รอบคู่ถัดไป ขนาดเท่ากัน ไปช่องเดิม ฝั่งซ้าย
+            ? { bracket: LOSERS, round: round + 1, slot, side: 0 }
+            // รอบคู่ -> รอบคี่ถัดไป ยุบลงครึ่งหนึ่ง
+            : { bracket: LOSERS, round: round + 1, slot: Math.floor(slot / 2), side: (slot % 2) as 0 | 1 },
+        // แพ้ในสายแพ้ = แพ้ครั้งที่สอง ตกรอบ
+        loserTo: null,
+        isBye: false,
+        winnerId: null
+      });
+    }
+  }
+
+  // แชมป์สายชนะเข้ารอบชิงโดยตรง
+  const wbFinal = matches.find((m) => m.bracket === WINNERS && m.round === wbRounds);
+  if (wbFinal) wbFinal.winnerTo = { bracket: GRAND, round: 1, slot: 0, side: 0 };
+
+  // รอบชิง นัดแรก
+  matches.push({
+    bracket: GRAND,
+    round: 1,
+    slot: 0,
+    teamAId: null,   // แชมป์สายชนะ
+    teamBId: null,   // แชมป์สายแพ้
+    // ทั้งผู้ชนะและผู้แพ้ไปนัดตัดสิน ตัวที่ตัดสินว่าจะได้เล่นจริงไหมคือ store
+    // ถ้าแชมป์สายชนะชนะนัดแรก ก็จบ นัดตัดสินไม่ถูกใช้
+    winnerTo: { bracket: GRAND, round: 2, slot: 0, side: 0 },
+    loserTo: { bracket: GRAND, round: 2, slot: 0, side: 1 },
+    isBye: false,
+    winnerId: null
+  });
+
+  // นัดตัดสิน เล่นเฉพาะตอนแชมป์สายแพ้ชนะนัดแรก
+  matches.push({
+    bracket: GRAND,
+    round: 2,
+    slot: 0,
+    teamAId: null,
+    teamBId: null,
+    winnerTo: null,
+    loserTo: null,
+    isBye: false,
+    winnerId: null
+  });
+
+  return matches;
 }
 
 // ---- GROUP STAGE ----------------------------------------------------
@@ -207,9 +340,8 @@ export function groupStage(teamIds: readonly string[], groupCount: number): Plan
           slot,
           teamAId: a,
           teamBId: b,
-          nextRound: null,
-          nextSlot: null,
-          nextSide: null,
+          winnerTo: null,
+          loserTo: null,
           isBye: false,
           winnerId: null
         });
@@ -245,9 +377,8 @@ export function generateMatches(plan: GeneratePlan): GenerateResult {
           slot,
           teamAId: a,
           teamBId: b,
-          nextRound: null,
-          nextSlot: null,
-          nextSide: null,
+          winnerTo: null,
+          loserTo: null,
           isBye: false,
           winnerId: null
         });
@@ -260,12 +391,14 @@ export function generateMatches(plan: GeneratePlan): GenerateResult {
     return { matches: singleElimination(teamIds) };
   }
 
+  if (format === 'double_elim') {
+    return { matches: doubleElimination(teamIds) };
+  }
+
   if (format === 'group_stage') {
     const count = Math.max(2, Math.min(plan.groupCount ?? 4, Math.floor(teamIds.length / 2)));
     return { matches: groupStage(teamIds, count) };
   }
 
-  // แพ้สองครั้งคัดออกยังไม่รองรับ สายแพ้มีกติกาการไหลของตัวเองที่ซับซ้อนกว่ามาก
-  // ทำครึ่งๆ กลางๆ แล้วปล่อยออกไปอันตรายกว่าบอกตรงๆ ว่ายังไม่มี
-  return { error: 'Double elimination brackets are not generated yet. Use single elimination, round robin or group stage.' };
+  return { error: `Unknown format: ${String(format)}` };
 }

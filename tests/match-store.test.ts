@@ -49,13 +49,6 @@ test('a bracket cannot be drawn with fewer than two teams', () => {
   assert.match(result.error as string, /at least two teams/i);
 });
 
-test('double elimination is refused at the store too, not just in the algorithm', () => {
-  const { matches, tournament } = stores('double_elim', 3, 8);
-  const result = matches.generate(tournament.id);
-  assert.ok(result.error);
-  assert.match(result.error as string, /not generated yet/i);
-});
-
 // ---- TEST GOAL 2: Bo3 / Bo5 ต้องตัดสินเหมือนกัน ----
 
 test('a Bo3 is only complete at two wins, and the winner moves on', () => {

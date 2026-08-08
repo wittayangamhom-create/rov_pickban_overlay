@@ -12,6 +12,7 @@ import {
   roundRobinRounds,
   seedOrder,
   singleElimination,
+  doubleElimination,
   groupStage,
   generateMatches
 } from '../server/domain/bracket';
@@ -206,7 +207,7 @@ test('a single elimination bracket takes exactly n-1 played matches to decide', 
     const played = matches.filter((m) => !m.isBye);
     assert.strictEqual(played.length, n - 1, `n=${n} should play exactly ${n - 1} matches`);
     assert.strictEqual(
-      matches.filter((m) => m.nextRound === null).length,
+      matches.filter((m) => m.winnerTo === null).length,
       1,
       `n=${n} should have exactly one final`
     );
@@ -258,21 +259,16 @@ test('bye winners are carried into the next round automatically', () => {
 test('winners are routed to the correct next slot and side', () => {
   const matches = singleElimination(teams(8));
   matches.filter((m) => m.round === 1).forEach((m) => {
-    assert.strictEqual(m.nextRound, 2);
-    assert.strictEqual(m.nextSlot, Math.floor(m.slot / 2));
-    assert.strictEqual(m.nextSide, (m.slot % 2) as 0 | 1);
+    assert.strictEqual(m.winnerTo?.round, 2);
+    assert.strictEqual(m.winnerTo?.slot, Math.floor(m.slot / 2));
+    assert.strictEqual(m.winnerTo?.side, (m.slot % 2) as 0 | 1);
+    assert.strictEqual(m.winnerTo?.bracket, 'main');
   });
-  const final = matches.find((m) => m.nextRound === null);
+  const final = matches.find((m) => m.winnerTo === null);
   assert.strictEqual(final?.round, 3, 'eight teams finish in three rounds');
 });
 
 // ---- ENTRY POINT ----
-
-test('double elimination is refused clearly rather than generated wrongly', () => {
-  const result = generateMatches({ format: 'double_elim', teamIds: teams(8) });
-  assert.ok(result.error, 'should not silently produce a half-right bracket');
-  assert.match(result.error as string, /not generated yet/i);
-});
 
 test('too few teams produces no matches rather than a broken bracket', () => {
   assert.deepStrictEqual(generateMatches({ format: 'single_elim', teamIds: ['solo'] }).matches, []);
