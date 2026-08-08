@@ -873,42 +873,76 @@ function renderFoot() {
 }
 
 // BOOT ---------------------------------------------------------------
+//
+// ผูก event ผ่าน on() เสมอ อย่าเรียก getElementById(...).addEventListener ตรงๆ
+//
+// เหตุผล: ถ้า element ตัวใดตัวหนึ่งหายไป (เช่นเบราว์เซอร์ยัง cache html ตัวเก่า
+// อยู่ แต่โหลด js ตัวใหม่มาแล้ว) การเรียกตรงๆ จะโยน TypeError
+// แล้วบรรทัดที่เหลือ *ทั้งหมด* ใต้จุดนั้นไม่ถูกรันเลย รวมถึง load()
+// อาการที่ผู้ใช้เจอคือหน้าขึ้นมาแต่กดอะไรไม่ได้สักอย่าง โดยไม่มีอะไรบอกว่าพัง
+// on() จะข้ามตัวที่หายแล้วบ่นลง console แทน ตัวอื่นยังผูกได้ตามปกติ
 
-document.getElementById('saveBtn').addEventListener('click', save);
-document.getElementById('deleteBtn').addEventListener('click', remove);
-document.getElementById('revertBtn').addEventListener('click', () => {
-  if (current) {
-    renderForm(current);
-    showToast('Reverted to saved values', 'blue');
+function on(id, event, handler) {
+  const el = document.getElementById(id);
+  if (!el) {
+    console.warn(`tournament.js: #${id} is missing, its ${event} handler was skipped`);
+    return null;
   }
-});
-document.getElementById('fFormat').addEventListener('change', renderFormatHint);
+  el.addEventListener(event, handler);
+  return el;
+}
 
-document.getElementById('addTeamBtn').addEventListener('click', () => {
-  const panel = document.getElementById('addPanel');
-  panel.hidden = !panel.hidden;
-  if (!panel.hidden) {
-    renderPicker();
-    document.getElementById('newTeamName').focus();
+function boot() {
+  on('saveBtn', 'click', save);
+  on('deleteBtn', 'click', remove);
+  on('revertBtn', 'click', () => {
+    if (current) {
+      renderForm(current);
+      showToast('Reverted to saved values', 'blue');
+    }
+  });
+  on('fFormat', 'change', renderFormatHint);
+
+  on('addTeamBtn', 'click', () => {
+    const panel = document.getElementById('addPanel');
+    if (!panel) return;
+    panel.hidden = !panel.hidden;
+    if (!panel.hidden) {
+      renderPicker();
+      document.getElementById('newTeamName')?.focus();
+    }
+  });
+  on('closeAddBtn', 'click', () => {
+    const panel = document.getElementById('addPanel');
+    if (panel) panel.hidden = true;
+  });
+
+  const bracketLink = document.getElementById('bracketLink');
+  if (bracketLink) {
+    bracketLink.href = withToken(`/tournament/${encodeURIComponent(tournamentId)}/bracket`);
   }
-});
-document.getElementById('closeAddBtn').addEventListener('click', () => {
-  document.getElementById('addPanel').hidden = true;
-});
-document.getElementById('bracketLink').href = withToken(`/tournament/${encodeURIComponent(tournamentId)}/bracket`);
-document.getElementById('drawBtn').addEventListener('click', drawMatches);
-document.getElementById('clearMatchesBtn').addEventListener('click', clearMatches);
-document.getElementById('addExistingBtn').addEventListener('click', addExisting);
-document.getElementById('createTeamBtn').addEventListener('click', createAndAdd);
-document.getElementById('newTeamName').addEventListener('keydown', (event) => {
-  if (event.key === 'Enter') createAndAdd();
-});
 
-socket.on('connect_error', (error) => showToast(error.message || 'Connection error', 'red'));
+  on('drawBtn', 'click', drawMatches);
+  on('clearMatchesBtn', 'click', clearMatches);
+  on('addExistingBtn', 'click', addExisting);
+  on('createTeamBtn', 'click', createAndAdd);
+  on('newTeamName', 'keydown', (event) => {
+    if (event.key === 'Enter') createAndAdd();
+  });
 
-renderFoot();
+  socket.on('connect_error', (error) => showToast(error.message || 'Connection error', 'red'));
+  renderFoot();
+}
 
 (async () => {
+  try {
+    boot();
+  } catch (error) {
+    // ผูก event ไม่สำเร็จ ยังพยายามโหลดข้อมูลต่อ แต่ต้องบอกให้รู้
+    console.error('tournament.js boot failed', error);
+    showToast('Some controls on this page failed to start - try a hard reload', 'red');
+  }
+
   if (!tournamentId) {
     showMissing('No tournament id in the address.');
     return;
