@@ -92,21 +92,34 @@
           <button type="button" class="tlink primary" id="addExistingBtn">ADD TO TOURNAMENT</button>
         </div>
       </div>
-      <div class="frow" style="border-top:1px solid var(--border);padding-top:12px;">
-        <div class="fld">
-          <label for="newTeamName">…or create a new team</label>
-          <input id="newTeamName" type="text" maxlength="24" placeholder="Team name" autocomplete="off">
+      <!-- สร้างทีมใหม่พร้อมผู้เล่นในฟอร์มเดียว
+           เดิมต้องสร้างทีมเปล่าก่อนแล้วค่อยกด EDIT เพื่อใส่ผู้เล่น
+           ซึ่งเป็นสองขั้นตอนทั้งที่คนกรอกมีข้อมูลครบอยู่ในมือแล้ว -->
+      <div style="border-top:1px solid var(--border);padding-top:14px;">
+        <div class="section-title" style="margin-bottom:10px;">…or create a new team</div>
+        <div class="frow">
+          <div class="fld">
+            <label for="newTeamName">Team name</label>
+            <input id="newTeamName" type="text" maxlength="24" placeholder="Flash Wolves" autocomplete="off">
+          </div>
+          <div class="fld" style="flex:0 0 130px;">
+            <label for="newTeamTag">Tag</label>
+            <input id="newTeamTag" type="text" maxlength="6" placeholder="FW" autocomplete="off">
+          </div>
+          <div class="fld" style="flex:0 0 auto;justify-content:flex-end;">
+            <button type="button" class="tlink" id="newTeamLogoBtn">CHOOSE LOGO</button>
+          </div>
         </div>
-        <div class="fld" style="flex:0 0 130px;">
-          <label for="newTeamTag">Tag</label>
-          <input id="newTeamTag" type="text" maxlength="6" placeholder="FW" autocomplete="off">
-        </div>
-        <div class="fld" style="flex:0 0 auto;justify-content:flex-end;">
+
+        <label class="fld" style="margin-bottom:8px;"><span>Players</span></label>
+        <div id="newTeamPlayers"></div>
+
+        <div class="frow" style="margin-top:12px;">
           <button type="button" class="tlink primary" id="createTeamBtn">CREATE &amp; ADD</button>
+          <button type="button" class="tlink" id="clearNewTeamBtn">CLEAR FORM</button>
+          <div class="spacer" style="margin-left:auto;"></div>
+          <button type="button" class="tlink" id="closeAddBtn">CLOSE</button>
         </div>
-      </div>
-      <div class="frow">
-        <button type="button" class="tlink" id="closeAddBtn">CLOSE</button>
       </div>
     </div>
 

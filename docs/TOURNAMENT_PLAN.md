@@ -161,6 +161,14 @@ rejects the reserved slot names anyway, in case the id format ever changes.
 A test creates a team literally named `../../evil name` and asserts the file
 still lands as `<id>.png`.
 
+A team is created **with its players in one form** — name, tag, five player
+slots with a captain, and optionally a logo, all in a single CREATE & ADD.
+The logo still uploads after creation because its filename comes from the
+server-generated id, but that is hidden from the user.
+
+The create form and the edit panel share one `buildPlayerRows` helper. They
+were written twice at first, which is how the two drift apart.
+
 ---
 
 ## 5. Formats and limits

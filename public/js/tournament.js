@@ -18,6 +18,8 @@ let current = null;   // ทัวร์นาเมนต์ที่โหล�
 let roster = [];      // ทีมที่ลงแข่งในทัวร์นาเมนต์นี้
 let registry = [];    // ทีมทั้งหมดในทะเบียนกลาง ไว้ใส่ใน dropdown
 let liveMatchId = null; // คู่ที่กำลังออกอากาศ มีได้ทีละหนึ่งทั้งระบบ
+let newTeamPlayers = null; // ตัวอ่านค่าช่องผู้เล่นในฟอร์มสร้างทีมใหม่
+let pendingLogo = null;    // ไฟล์โลโก้ที่เลือกไว้ รออัปโหลดหลังทีมถูกสร้าง
 
 // ขนาดหน้าจอเลือกที่ control panel หน้านี้แค่บอกว่า URL ไหนคู่กับขนาดไหน
 const SOURCES = [
@@ -100,6 +102,69 @@ function renderFormatHint() {
     hint.textContent = `${spec.minTeams}-${spec.maxTeams} teams`;
     hint.style.color = '';
   }
+}
+
+// PLAYER ROWS ---------------------------------------------------------
+//
+// ใช้ตัวเดียวกันทั้งฟอร์มสร้างทีมใหม่และฟอร์มแก้ทีมเดิม
+// เคยเขียนแยกกันสองที่ พอแก้ที่หนึ่งอีกที่ก็เพี้ยนตาม จึงรวมมาไว้ที่เดียว
+//
+// คืนฟังก์ชันอ่านค่ากลับไป ผู้เรียกจึงไม่ต้องรู้ว่าข้างในวางโครงยังไง
+const ROSTER_SIZE = 5;
+
+function buildPlayerRows(container, players, captainGroup) {
+  container.textContent = '';
+
+  const rows = Array.from({ length: ROSTER_SIZE }, (_, i) => {
+    const player = players?.[i] || {};
+
+    const row = document.createElement('div');
+    row.className = 'player-row';
+
+    const slot = document.createElement('div');
+    slot.className = 'slot';
+    slot.textContent = String(i + 1);
+
+    const name = document.createElement('input');
+    name.type = 'text';
+    name.className = 'pname';
+    name.maxLength = 24;
+    name.placeholder = `Player ${i + 1}`;
+    name.value = player.name || '';
+
+    const role = document.createElement('input');
+    role.type = 'text';
+    role.className = 'prole';
+    role.maxLength = 16;
+    role.placeholder = 'Role';
+    role.value = player.role || '';
+
+    const capLabel = document.createElement('label');
+    capLabel.className = 'cap';
+    const cap = document.createElement('input');
+    cap.type = 'radio';
+    cap.name = captainGroup;
+    cap.checked = player.isCaptain === true;
+    capLabel.append(cap, document.createTextNode('Captain'));
+
+    row.append(slot, name, role, capLabel);
+    container.appendChild(row);
+    return { name, role, cap };
+  });
+
+  return {
+    read: () => rows.map((r) => ({
+      name: r.name.value,
+      role: r.role.value,
+      isCaptain: r.cap.checked
+    })),
+    clear: () => rows.forEach((r) => {
+      r.name.value = '';
+      r.role.value = '';
+      r.cap.checked = false;
+    }),
+    focusFirst: () => rows[0]?.name.focus()
+  };
 }
 
 // โลโก้: v = 0 คือยังไม่มีภาพ ตัวเลขอื่นคือเวลาที่อัปโหลด ใช้กัน cache
@@ -249,40 +314,10 @@ function buildEditor(editor, team) {
   playersLabel.style.marginBottom = '8px';
   playersWrap.appendChild(playersLabel);
 
-  const playerInputs = team.players.map((player, i) => {
-    const row = document.createElement('div');
-    row.className = 'player-row';
-
-    const slot = document.createElement('div');
-    slot.className = 'slot';
-    slot.textContent = String(i + 1);
-
-    const pname = document.createElement('input');
-    pname.type = 'text';
-    pname.className = 'pname';
-    pname.maxLength = 24;
-    pname.placeholder = `Player ${i + 1}`;
-    pname.value = player.name || '';
-
-    const prole = document.createElement('input');
-    prole.type = 'text';
-    prole.className = 'prole';
-    prole.maxLength = 16;
-    prole.placeholder = 'Role';
-    prole.value = player.role || '';
-
-    const capLabel = document.createElement('label');
-    capLabel.className = 'cap';
-    const cap = document.createElement('input');
-    cap.type = 'radio';
-    cap.name = `captain-${team.id}`;
-    cap.checked = player.isCaptain === true;
-    capLabel.append(cap, document.createTextNode('Captain'));
-
-    row.append(slot, pname, prole, capLabel);
-    playersWrap.appendChild(row);
-    return { pname, prole, cap };
-  });
+  // ช่องผู้เล่นชุดเดียวกับที่ใช้ในฟอร์มสร้างทีมใหม่
+  const playerRows = document.createElement('div');
+  playersWrap.appendChild(playerRows);
+  const players = buildPlayerRows(playerRows, team.players, `captain-${team.id}`);
 
   // LOGO ---------------------------------------------------------------
   const logoRow = document.createElement('div');
@@ -331,11 +366,7 @@ function buildEditor(editor, team) {
     name: nameInput.value,
     tag: tagInput.value,
     seed: Number(seedInput.value),
-    players: playerInputs.map((p) => ({
-      name: p.pname.value,
-      role: p.prole.value,
-      isCaptain: p.cap.checked
-    }))
+    players: players.read()
   }));
 
   const spacer = document.createElement('div');
@@ -536,6 +567,10 @@ async function addExisting() {
   }
 }
 
+// สร้างทีม + ผู้เล่น + โลโก้ ในการกดครั้งเดียว
+//
+// โลโก้ต้องอัปโหลดหลังสร้างเสมอ เพราะชื่อไฟล์มาจาก id ที่เซิร์ฟเวอร์เพิ่งออกให้
+// ฝั่งผู้ใช้ไม่ต้องรู้เรื่องนี้ เลือกไฟล์ไว้ก่อนแล้วกดปุ่มเดียวจบ
 async function createAndAdd() {
   const nameInput = document.getElementById('newTeamName');
   const tagInput = document.getElementById('newTeamTag');
@@ -546,24 +581,58 @@ async function createAndAdd() {
     return;
   }
 
+  let team;
   try {
-    const { team } = await fetchJson('/api/teams', {
+    ({ team } = await fetchJson('/api/teams', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, tag: tagInput.value })
-    });
+      body: JSON.stringify({
+        name,
+        tag: tagInput.value,
+        players: newTeamPlayers ? newTeamPlayers.read() : []
+      })
+    }));
+  } catch (error) {
+    showToast(error.message || 'Could not create the team', 'red');
+    return;
+  }
+
+  // ทีมมีตัวตนแล้ว ตั้งแต่จุดนี้ไปพลาดตรงไหนก็ไม่ลบทีมทิ้ง
+  // ผู้ใช้ตั้งใจสร้างมันจริงๆ แค่ขั้นตอนถัดไปไม่สำเร็จ
+  if (pendingLogo) {
+    try {
+      await sendLogo(team.id, pendingLogo);
+    } catch (error) {
+      showToast(`${team.name} created, but the logo failed: ${error.message}`, 'red');
+    }
+  }
+
+  try {
     await refreshRegistry();
     await addTeamToTournament(team.id);
-    nameInput.value = '';
-    tagInput.value = '';
+    resetNewTeamForm();
     nameInput.focus();
     showToast(`${team.name} added`, 'green');
   } catch (error) {
-    // ทีมถูกสร้างในทะเบียนแล้วแต่ใส่เข้าทัวร์นาเมนต์ไม่ได้ (เช่นเต็ม)
-    // ไม่ลบทีมทิ้ง เพราะผู้ใช้ตั้งใจสร้างมันจริงๆ แค่ยังใส่ไม่ได้
+    // เช่นทัวร์นาเมนต์เต็ม ทีมยังอยู่ในทะเบียน หยิบไปใส่ทัวร์นาเมนต์อื่นได้
     await refreshRegistry();
-    showToast(error.message || 'Could not create the team', 'red');
+    showToast(`${team.name} is in the registry, but ${(error.message || 'could not be added').toLowerCase()}`, 'red');
   }
+}
+
+function resetNewTeamForm() {
+  document.getElementById('newTeamName').value = '';
+  document.getElementById('newTeamTag').value = '';
+  if (newTeamPlayers) newTeamPlayers.clear();
+  setPendingLogo(null);
+}
+
+function setPendingLogo(file) {
+  pendingLogo = file;
+  const btn = document.getElementById('newTeamLogoBtn');
+  if (!btn) return;
+  btn.textContent = file ? `LOGO: ${file.name.slice(0, 14)}` : 'CHOOSE LOGO';
+  btn.classList.toggle('primary', Boolean(file));
 }
 
 async function removeFromTournament(team) {
@@ -622,23 +691,27 @@ async function deleteTeam(team) {
   }
 }
 
-// อัปโหลดไฟล์ดิบ ไม่ใช้ multipart ให้ตรงกับที่ฝั่งเซิร์ฟเวอร์รับ
+// ส่งไฟล์ดิบ ไม่ใช้ multipart ให้ตรงกับที่ฝั่งเซิร์ฟเวอร์รับ
+// โยน error ออกไป ผู้เรียกเป็นคนตัดสินใจว่าจะบอกผู้ใช้ยังไง
+async function sendLogo(teamId, file) {
+  if (file.size > 4 * 1024 * 1024) throw new Error('Logo must be 4 MB or smaller');
+
+  const response = await fetch(withToken(`/api/teams/${encodeURIComponent(teamId)}/logo`), {
+    method: 'POST',
+    headers: {
+      'Content-Type': file.type,
+      ...(controlToken ? { Authorization: `Bearer ${controlToken}` } : {})
+    },
+    body: file
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || response.statusText);
+  return data;
+}
+
 async function uploadLogo(team, file) {
-  if (file.size > 4 * 1024 * 1024) {
-    showToast('Logo must be 4 MB or smaller', 'red');
-    return;
-  }
   try {
-    const response = await fetch(withToken(`/api/teams/${encodeURIComponent(team.id)}/logo`), {
-      method: 'POST',
-      headers: {
-        'Content-Type': file.type,
-        ...(controlToken ? { Authorization: `Bearer ${controlToken}` } : {})
-      },
-      body: file
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || response.statusText);
+    await sendLogo(team.id, file);
     await reloadTeams();
     await refreshRegistry();
     showToast('Logo uploaded', 'green');
@@ -902,6 +975,26 @@ function boot() {
     }
   });
   on('fFormat', 'change', renderFormatHint);
+
+  // ช่องผู้เล่นของฟอร์มสร้างทีมใหม่ สร้างครั้งเดียวตอนเปิดหน้า
+  const playersBox = document.getElementById('newTeamPlayers');
+  if (playersBox) newTeamPlayers = buildPlayerRows(playersBox, [], 'captain-new-team');
+
+  // ตัวเลือกไฟล์โลโก้ ซ่อนไว้ ใช้ปุ่มที่จัดสไตล์แล้วกดแทน
+  const logoPicker = document.createElement('input');
+  logoPicker.type = 'file';
+  logoPicker.accept = 'image/png,image/jpeg,image/webp';
+  logoPicker.hidden = true;
+  document.body.appendChild(logoPicker);
+  logoPicker.addEventListener('change', () => {
+    setPendingLogo(logoPicker.files?.[0] || null);
+    logoPicker.value = '';
+  });
+  on('newTeamLogoBtn', 'click', () => logoPicker.click());
+  on('clearNewTeamBtn', 'click', () => {
+    resetNewTeamForm();
+    showToast('Form cleared', 'blue');
+  });
 
   on('addTeamBtn', 'click', () => {
     const panel = document.getElementById('addPanel');
