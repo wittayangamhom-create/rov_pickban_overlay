@@ -23,7 +23,7 @@ The bracket page is committed locally on top and **is** verified in a browser.
 | `bf76d9e` | Phase 2 — home is the tournament list, `/tournament/:id` detail page |
 | `16fe9bb` | Phase 3 — team registry UI, per-team logos, rosters, cap in the UI |
 | `a3cf985` | Phase 4 — bracket generation, random draw, series results |
-| _pending_ | Double elimination with grand-final reset |
+| `dcee2c3` | Double elimination with grand-final reset |
 | `72ddb6f` | Phase 5 — match to control panel, live pointer, **draft capture** |
 | `418b23d` | Bracket page at `/tournament/:id/bracket` |
 
