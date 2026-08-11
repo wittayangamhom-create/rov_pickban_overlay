@@ -12,7 +12,7 @@ conversation history, everything needed to continue is here or in `CLAUDE.md`.
 ## 0. Where things stand
 
 **Last updated 2026-08-07.** Everything below is committed **and pushed** —
-`origin/main` is at `6cb00a2`, the working tree is clean, nothing is local-only.
+`origin/main` is at `5d1c32b` or later, the working tree is clean.
 
 | Commit | What |
 |---|---|
@@ -52,23 +52,18 @@ share it with `flex: 1`. Round 2 has half as many slots, so each is twice as
 tall, and centring the box in its slot lands it exactly between the two feeding
 it. No pixel maths, and it holds for any bracket size.
 
-**Next up: Phase 6** — the  directory and  profile with
+**Next up: Phase 6** — the `/teams` directory and `/teams/:id` profile with
 match history. Then Phase 7 (team-list overlay with the staggered slide-in) and
-Phase 8 (analytics, which now has real drafts to read because capture has been
+Phase 8 (analytics, which now has real drafts to read, because capture has been
 recording since Phase 5).
 
 ### Starting a fresh session
 
-Read this file and , then . Run
-Unknown command: "test"
+Read this file and `CLAUDE.md`, then `git log --oneline -12`. Run `npm test`
+and `npm run check` to confirm the baseline before changing anything.
 
-
-Did you mean this?
-  npm test # Test a package
-To see a list of supported npm commands, run:
-  npm help and  to confirm the baseline before changing
-anything. The standing rule from the user: **any phase work updates this
-document in the same change** — see the section in .
+The standing rule from the user: **any phase work updates this document in the
+same change** — there is a section on it in `CLAUDE.md`.
 
 **Double elimination is implemented**, with the grand-final reset: the losers
 bracket winner must beat the winners bracket winner twice, because the winners
