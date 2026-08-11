@@ -11,8 +11,8 @@ conversation history, everything needed to continue is here or in `CLAUDE.md`.
 
 ## 0. Where things stand
 
-**Last updated 2026-08-07.** Phases 0–5 are on `origin/main` (`9635d0f`).
-The bracket page is committed locally on top and **is** verified in a browser.
+**Last updated 2026-08-07.** Everything below is committed **and pushed** —
+`origin/main` is at `6cb00a2`, the working tree is clean, nothing is local-only.
 
 | Commit | What |
 |---|---|
@@ -27,10 +27,11 @@ The bracket page is committed locally on top and **is** verified in a browser.
 | `72ddb6f` | Phase 5 — match to control panel, live pointer, **draft capture** |
 | `418b23d` | Bracket page at `/tournament/:id/bracket` |
 
-Current state: **0 type errors under `strict`, 103 tests passing.** Creating a
-tournament, adding teams, editing rosters, uploading logos, drawing a bracket,
-recording Bo3/Bo5 results, opening a match in the control panel and having its
-draft recorded all work end to end in the browser.
+Current state: **0 type errors under `strict`, 114 tests passing.** Creating a
+tournament, adding a team with its players in one form, uploading logos,
+drawing single/double elimination, round robin and group brackets, recording
+Bo3/Bo5 results, opening a match in the control panel and having its draft
+recorded all work end to end in the browser.
 
 **Draft capture is live.** Every pick and ban is mirrored into its game record
 the moment it is made — no save step, nothing to forget. This was the deadline
@@ -51,9 +52,23 @@ share it with `flex: 1`. Round 2 has half as many slots, so each is twice as
 tall, and centring the box in its slot lands it exactly between the two feeding
 it. No pixel maths, and it holds for any bracket size.
 
-**Next up: Phase 6** — the `/teams` directory and `/teams/:id` profile with
-match history. After that Phase 7 (team-list overlay) and Phase 8 (analytics,
-which now has real data to read).
+**Next up: Phase 6** — the  directory and  profile with
+match history. Then Phase 7 (team-list overlay with the staggered slide-in) and
+Phase 8 (analytics, which now has real drafts to read because capture has been
+recording since Phase 5).
+
+### Starting a fresh session
+
+Read this file and , then . Run
+Unknown command: "test"
+
+
+Did you mean this?
+  npm test # Test a package
+To see a list of supported npm commands, run:
+  npm help and  to confirm the baseline before changing
+anything. The standing rule from the user: **any phase work updates this
+document in the same change** — see the section in .
 
 **Double elimination is implemented**, with the grand-final reset: the losers
 bracket winner must beat the winners bracket winner twice, because the winners
@@ -272,11 +287,16 @@ pattern already in `public/js/overlay.js`.
   caster drive the draft while OBS has focus. The app's own hotkeys page
   currently implies this is impossible — true for a browser page, not for the
   Electron main process.
-- **Double elimination generation** — now the largest gap, and the reason the
-  losers half of the reference bracket cannot render.
-- **Test goals 2–4** (game modes consistent, no overlapping random matches,
-  room for future development) land with Phase 4. Goal 1 (128-team cap) is done
-  and tested.
+- **The losers bracket has never been seen rendered.** `bracket.js` groups by
+  the `bracket` column so it should section into Winners / Losers / Grand final
+  on its own, but that is inference, not observation. Draw a double-elimination
+  bracket and look at it before trusting the layout.
+- **All four test goals are met.** 1: the 128-team cap is enforced in the store
+  and refuses the 129th. 2: Bo1/3/5/7 all decide on a strict majority through
+  one `seriesWinner`. 3: round robin uses the circle method so no team can
+  appear twice in a round, by construction rather than by retrying. 4: the room
+  for future work is the migration runner, the pure `domain/` layer and the
+  114-test suite.
 
 ---
 
